@@ -1,0 +1,43 @@
+# @claude do
+# create the proper gitignore fot this project
+# @reply: Done — generated for pnpm TypeScript monorepo with VS Code extension and Obsidian vault.
+# @status: done
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+out/
+build/
+*.vsix
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+
+# Obsidian vault settings (user-specific)
+.obsidian/
+
+# Agents / AI tooling
+.agents/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

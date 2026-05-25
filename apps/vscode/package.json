@@ -1,0 +1,24 @@
+{
+  "name": "@pilotfish/vscode",
+  "displayName": "pilotfish",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json",
+    "check": "biome check --write src",
+    "lint": "biome lint src",
+    "format": "biome format --write src"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@types/vscode": "^1.120.0",
+    "typescript": "^6.0.3"
+  }
+}
