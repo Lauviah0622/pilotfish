@@ -1,0 +1,11 @@
+{
+	"id": "obsidian-pilotfish-plugin",
+	"name": "Obsidian Pilotfish plugin",
+	"version": "1.0.0",
+	"minAppVersion": "1.0.0",
+	"description": "Gogo pilotfish!!",
+	"author": "Lance Fang",
+	"authorUrl": "https://obsidian.md",
+	"fundingUrl": "https://obsidian.md/pricing",
+	"isDesktopOnly": true
+}
