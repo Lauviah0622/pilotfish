@@ -1,28 +1,28 @@
 ---
 name: collab
-description: Handle @claude comment blocks embedded in source files. Invoke with an optional file:line reference (e.g. /collab src/foo.ts:42) to process the nearest block at that position.
+description: Handle @agent comment blocks embedded in source files. Invoke with an optional file:line reference (e.g. /collab src/foo.ts:42) to process the nearest block at that position.
 ---
 
 # Collab Protocol
 
-This skill processes `/* @claude */` comment blocks that the user writes directly in source files. It is the primary channel for inline instructions, questions, and design discussions.
+This skill processes `/* @agent */` comment blocks that the user writes directly in source files. It is the primary channel for inline instructions, questions, and design discussions.
 
 ## Block Types
 
 ```
-/* @claude do
+/* @agent do
  * <what to change or implement>
  * @status: pending
  */
 
-/* @claude ask
- * <question for Claude>
+/* @agent ask
+ * <question for Agent>
  * @status: pending
  *
- * @claude user-reply
+ * @agent user-reply
  */
 
-/* @claude discuss
+/* @agent discuss
  * <design idea or tradeoff to think through>
  * @status: pending
  */
@@ -31,11 +31,11 @@ This skill processes `/* @claude */` comment blocks that the user writes directl
 ## Invocation
 
 - `/collab` — handle the block described or quoted in the current message
-- `/collab src/components/Foo.tsx:42` — read from that file at that line, find the enclosing or nearest `/* @claude ... */` block, handle only that block
+- `/collab src/components/Foo.tsx:42` — read from that file at that line, find the enclosing or nearest `/* @agent ... */` block, handle only that block
 
 When a `file:line` is given:
 1. Read the file starting at the given line
-2. Locate the enclosing `/* @claude ... */` block (search up if mid-block, or take the next block below)
+2. Locate the enclosing `/* @agent ... */` block (search up if mid-block, or take the next block below)
 3. Handle that single block unless the user explicitly asks to scan further
 
 ## How to Respond
@@ -48,7 +48,7 @@ When a `file:line` is given:
 - Add a one-line `@reply:` summarising what changed (line numbers help)
 
 ```js
-/* @claude do
+/* @agent do
  * Rename fetchUser → getUser throughout this file
  * @reply: Done — 7 instances renamed, type import on line 3 updated.
  * @status: done
@@ -60,7 +60,7 @@ When a `file:line` is given:
 - Update `@status: pending` → `@status: replied`
 
 ```js
-/* @claude ask
+/* @agent ask
  * Should we memoize this selector?
  * @reply: Yes — inputs are stable. Use useMemo with [userId, filters] as deps
  *   to avoid recalculation on unrelated renders.
@@ -73,7 +73,7 @@ When a `file:line` is given:
 - Update `@status: pending` → `@status: replied`
 
 ```js
-/* @claude discuss
+/* @agent discuss
  * Split AuthProvider into state-layer + UI-layer?
  * @reply: Worth it. State layer becomes independently testable and the UI layer
  *   stays pure. Extra file is a low cost. One risk: shared context type needs
