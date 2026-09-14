@@ -36,12 +36,34 @@ The protocol has two block types:
 - If listing action items, keep them flat and brief.
 - Mirror the document language when practical.
 
+## Two-Phase Reply
+
+Every reply follows a two-phase pattern:
+
+1. **Start** — immediately insert a `For User` block with `Pending...` to signal that work has begun
+2. **Finish** — replace the `Pending...` content in-place with the actual reply
+
+Do not delete and re-insert the block — update its content directly so the block position stays stable.
+
+```md
+> [!Comment] For User
+> Pending...
+```
+
+→ replaced in-place with:
+
+```md
+> [!Comment] For User
+> Revised this section for brevity and added one retry example below.
+```
+
 ## Recommended Workflow
 
 1. Scan the Markdown file for `For Agent` blocks before editing substantive content.
-2. Execute the requested work in the file or related files.
-3. If needed, leave a `For User` block to confirm what changed, ask for a decision, or note unresolved risk.
-4. Cuz the position of the For Agent block would change, so make sure you put the reply block at the right place after the generated content should be write into file
+2. Insert a `For User` block with `Pending...` near the triggering comment.
+3. Execute the requested work in the file or related files.
+4. Replace the `Pending...` content with the actual reply.
+5. Because the position of the `For Agent` block may shift after content is written, make sure the reply block ends up at the right place.
 
 ## Examples
 
@@ -52,7 +74,14 @@ User to agent:
 > Please tighten this section and add one example about API retries.
 ```
 
-Agent reply:
+Agent inserts immediately:
+
+```md
+> [!Comment] For User
+> Pending...
+```
+
+Agent replaces when done:
 
 ```md
 > [!Comment] For User

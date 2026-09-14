@@ -7,26 +7,35 @@ description: Handle @agent comment blocks embedded in source files. Invoke with 
 
 This skill processes `/* @agent */` comment blocks that the user writes directly in source files. It is the primary channel for inline instructions, questions, and design discussions.
 
-## Block Types
+## Core Protocol
 
-```
+All communication follows a symmetric pattern inside a single comment block:
+
+- **User → Agent**: `@agent {{action}}` — the opening line declares what kind of instruction this is
+- **Agent → User**: `@reply` — the agent always responds by appending a `@reply` line inside the same block
+
+**Never delete the user's original block content.** Only append.
+
+### Status Flow
+
+Every `@reply` carries a status. The agent writes two edits per block:
+
+1. **Start** — append `@reply status:pending` immediately when processing begins, so the user can see work is in progress
+2. **Finish** — update to `@reply status:done` and add the reply content
+
+```js
 /* @agent do
- * <what to change or implement>
- * @status: pending
+ * Rename fetchUser → getUser throughout this file
+ * @reply status:pending
  */
 
-/* @agent ask
- * <question for Agent>
- * @status: pending
- *
- * @agent user-reply
- */
-
-/* @agent discuss
- * <design idea or tradeoff to think through>
- * @status: pending
+/* @agent do
+ * Rename fetchUser → getUser throughout this file
+ * @reply status:done — 7 instances renamed, type import on line 3 updated.
  */
 ```
+
+This two-phase pattern applies to **all action types**.
 
 ## Invocation
 
@@ -38,53 +47,55 @@ When a `file:line` is given:
 2. Locate the enclosing `/* @agent ... */` block (search up if mid-block, or take the next block below)
 3. Handle that single block unless the user explicitly asks to scan further
 
-## How to Respond
+## Actions
 
-**Never delete the user's original block content.** Always reply inside the same block by appending `@reply:` and updating `@status:`.
+### `do`
 
-### `do` block
-- Make the requested code changes in the file
-- Update `@status: pending` → `@status: done`
-- Add a one-line `@reply:` summarising what changed (line numbers help)
+Request a code change or implementation.
+
+- Make the actual code changes in the file
+- `@reply status:done` with a one-line summary (line numbers help)
 
 ```js
 /* @agent do
  * Rename fetchUser → getUser throughout this file
- * @reply: Done — 7 instances renamed, type import on line 3 updated.
- * @status: done
+ * @reply status:done — 7 instances renamed, type import on line 3 updated.
  */
 ```
 
-### `ask` block
-- Add a `@reply:` with a direct answer (multi-line is fine, indent continuation lines with `*   `)
-- Update `@status: pending` → `@status: replied`
+### `ask`
+
+Ask the agent a question.
+
+- `@reply status:done` with a direct answer
+- Multi-line is fine; indent continuation lines with `*   `
 
 ```js
 /* @agent ask
  * Should we memoize this selector?
- * @reply: Yes — inputs are stable. Use useMemo with [userId, filters] as deps
- *   to avoid recalculation on unrelated renders.
- * @status: replied
+ * @reply status:done — Yes, inputs are stable. Use useMemo with [userId, filters]
+ *   as deps to avoid recalculation on unrelated renders.
  */
 ```
 
-### `discuss` block
-- Add a `@reply:` with a structured opinion: recommendation first, then tradeoff
-- Update `@status: pending` → `@status: replied`
+### `discuss`
+
+Think through a design idea or tradeoff.
+
+- `@reply status:done` with a structured opinion: recommendation first, then tradeoff
 
 ```js
 /* @agent discuss
  * Split AuthProvider into state-layer + UI-layer?
- * @reply: Worth it. State layer becomes independently testable and the UI layer
- *   stays pure. Extra file is a low cost. One risk: shared context type needs
- *   to live in a third file — plan for that upfront.
- * @status: replied
+ * @reply status:done — Worth it. State layer becomes independently testable and the
+ *   UI layer stays pure. Extra file is a low cost. One risk: shared context type
+ *   needs to live in a third file — plan for that upfront.
  */
 ```
 
 ## Rules
 
 - Only handle the block at the indicated position; do not scan the rest of the file unless asked
-- Keep `@reply:` concise — this is a code comment, not a chat message
-- For `do` blocks, always make the actual code change; `@status: done` without the change is wrong
+- Keep `@reply` concise — this is a code comment, not a chat message
+- For `do` blocks, always make the actual code change; `@reply status:done` without the change is wrong
 - Preserve indentation and comment style of the surrounding file
