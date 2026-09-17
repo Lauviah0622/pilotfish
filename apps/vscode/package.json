@@ -16,11 +16,31 @@
       {
         "command": "pilotfish-vscode.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "pilotfish-vscode.insertAgentBlock",
+        "title": "PilotFish: Insert Agent Block"
+      },
+      {
+        "command": "pilotfish-vscode.makeAgentCommand",
+        "title": "PilotFish: Copy agent instuction"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "PilotFish",
+      "properties": {
+        "pilotfish-vscode.copyPathPrefix": {
+          "type": "string",
+          "default": "collab ",
+          "description": "Prefix prepended to the path:line string produced by 'Copy Path with Line Number'."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
+    "vscode:package": "pnpm exec vsce package --out pilotfish-vscode.vsix",
+    "vscode:local-install": "code --install-extension pilotfish-vscode.vsix --force",
     "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
@@ -36,17 +56,20 @@
     "test": "vscode-test"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@biomejs/biome"]
+    "onlyBuiltDependencies": [
+      "@biomejs/biome"
+    ]
   },
   "devDependencies": {
-    "@types/vscode": "^1.137.0",
+    "@biomejs/biome": "^1.9.4",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "@biomejs/biome": "^1.9.4",
+    "@types/vscode": "^1.137.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.27.3",
     "npm-run-all": "^4.1.5",
-    "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript": "^5.9.3"
   }
 }
