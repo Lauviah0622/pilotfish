@@ -1,101 +1,120 @@
 ---
 name: collab
-description: Handle @agent comment blocks embedded in source files. Invoke with an optional file:line reference (e.g. /collab src/foo.ts:42) to process the nearest block at that position.
+description: Handle @agent action blocks embedded in source-code comments. Invoke with an optional file:line reference (for example, $collab src/foo.ts:42) to process the block at that position.
 ---
 
-# Collab Protocol
+# Editor Collaboration Protocol
 
-This skill processes `/* @agent */` comment blocks that the user writes directly in source files. It is the primary channel for inline instructions, questions, and design discussions.
+Use this skill for inline collaboration in non-Markdown source files. Keep the
+conversation inside the source language's native comment syntax.
 
-## Core Protocol
+## Canonical Markers
 
-All communication follows a symmetric pattern inside a single comment block:
+- User to agent: `@agent:action:{action}`
+- Agent to user: `@agent:reply:{status}`
+- Actions: `do`, `ask`, `discuss`
+- Reply statuses: `pending`, `done`
 
-- **User → Agent**: `@agent {{action}}` — the opening line declares what kind of instruction this is
-- **Agent → User**: `@reply` — the agent always responds by appending a `@reply` line inside the same block
+The marker is language-independent. Only the surrounding comment syntax changes.
 
-**Never delete the user's original block content.** Only append.
-
-### Status Flow
-
-Every `@reply` carries a status. The agent writes two edits per block:
-
-1. **Start** — append `@reply status:pending` immediately when processing begins, so the user can see work is in progress
-2. **Finish** — update to `@reply status:done` and add the reply content
-
-```js
-/* @agent do
- * Rename fetchUser → getUser throughout this file
- * @reply status:pending
- */
-
-/* @agent do
- * Rename fetchUser → getUser throughout this file
- * @reply status:done — 7 instances renamed, type import on line 3 updated.
+```ts
+/* @agent:action:do
+ * Rename fetchUser to getUser.
+ * @agent:reply:done — Renamed 7 references.
  */
 ```
 
-This two-phase pattern applies to **all action types**.
+```py
+# @agent:action:ask
+# Should this result be cached?
+# @agent:reply:done — Yes. Cache it by user ID and invalidate it on updates.
+```
+
+```html
+<!-- @agent:action:discuss
+  Should this component own the dialog state?
+  @agent:reply:done — Prefer local ownership; no sibling currently needs it.
+-->
+```
+
+Never delete or rewrite the user's action marker or request. Append the reply in
+the same comment block, preserving the file's indentation and comment style.
 
 ## Invocation
 
-- `/collab` — handle the block described or quoted in the current message
-- `/collab src/components/Foo.tsx:42` — read from that file at that line, find the enclosing or nearest `/* @agent ... */` block, handle only that block
+- `$collab` handles the block described or quoted in the current request.
+- `$collab src/components/Foo.tsx:42` reads that file and handles one block at
+  that position.
 
 When a `file:line` is given:
-1. Read the file starting at the given line
-2. Locate the enclosing `/* @agent ... */` block (search up if mid-block, or take the next block below)
-3. Handle that single block unless the user explicitly asks to scan further
+
+1. Locate the comment containing that line.
+2. If the line is not inside a collaboration block, use the next block below
+   whose opening marker matches `@agent:action:{action}`.
+3. Handle only that block unless the user explicitly asks to scan further.
+
+Support the source language's normal block or consecutive line comments, such
+as `/* ... */`, `<!-- ... -->`, `# ...`, and `// ...`.
+
+## Reply Lifecycle
+
+When useful for work that will take time, append `@agent:reply:pending` before
+starting. Replace that marker with the final reply; do not keep both markers.
+
+```ts
+/* @agent:action:do
+ * Rename fetchUser to getUser.
+ * @agent:reply:pending
+ */
+```
+
+Every completed action uses `@agent:reply:done`, including `ask` and `discuss`.
+Write the response after an em dash on the same line when it is short. Continue
+on following comment lines when more detail is needed.
 
 ## Actions
 
 ### `do`
 
-Request a code change or implementation.
+Make the requested change, verify it in proportion to its risk, and then append
+a concise summary. Never mark the reply `done` before the change is complete.
 
-- Make the actual code changes in the file
-- `@reply status:done` with a one-line summary (line numbers help)
-
-```js
-/* @agent do
- * Rename fetchUser → getUser throughout this file
- * @reply status:done — 7 instances renamed, type import on line 3 updated.
+```ts
+/* @agent:action:do
+ * Rename fetchUser to getUser.
+ * @agent:reply:done — Renamed 7 references and updated the type import.
  */
 ```
 
 ### `ask`
 
-Ask the agent a question.
+Append a direct answer.
 
-- `@reply status:done` with a direct answer
-- Multi-line is fine; indent continuation lines with `*   `
-
-```js
-/* @agent ask
+```ts
+/* @agent:action:ask
  * Should we memoize this selector?
- * @reply status:done — Yes, inputs are stable. Use useMemo with [userId, filters]
- *   as deps to avoid recalculation on unrelated renders.
+ * @agent:reply:done — Yes. Its inputs are stable; use userId and filters as deps.
  */
 ```
 
 ### `discuss`
 
-Think through a design idea or tradeoff.
+Append a recommendation first, followed by the important tradeoff.
 
-- `@reply status:done` with a structured opinion: recommendation first, then tradeoff
-
-```js
-/* @agent discuss
- * Split AuthProvider into state-layer + UI-layer?
- * @reply status:done — Worth it. State layer becomes independently testable and the
- *   UI layer stays pure. Extra file is a low cost. One risk: shared context type
- *   needs to live in a third file — plan for that upfront.
+```ts
+/* @agent:action:discuss
+ * Split AuthProvider into state and UI layers?
+ * @agent:reply:done — Yes. It improves testability, at the cost of one shared
+ *   context-types module.
  */
 ```
 
 ## Rules
 
-- Only handle the block at the indicated position; do not scan the rest of the file unless asked
-- Keep `@reply` concise — this is a code comment, not a chat message
-- For `do` blocks, always make the actual code change; `@reply status:done` without the change is wrong
-- Preserve indentation and comment style of the surrounding file
+- Recognize only the canonical markers above; do not introduce `@agent do`,
+  `@reply:`, `@reply status:...`, or a separate `@status:` field.
+- Keep replies concise because they remain in source code.
+- Preserve indentation and the surrounding comment style.
+- For `do`, make the actual code change before writing a completed reply.
+- If the requested work cannot be completed, leave the reply `pending` and state
+  the blocker after the marker.
