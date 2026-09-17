@@ -1,0 +1,9 @@
+{
+	"name": "@pilotfish/editor-skills",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Pilotfish editor collaboration skills",
+	"scripts": {
+		"test": "node tests/test.js"
+	}
+}

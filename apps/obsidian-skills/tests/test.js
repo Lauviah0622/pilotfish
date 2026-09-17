@@ -14,31 +14,12 @@ const path = require('node:path');
 
 
 
-/**
- * @agent discuss
- * 有幾個狀況
- 
- * - 有用 git init 想做比對，但最後卻沒有用 git diff？
- * - 
- * @reply: 建議把 package root 設為 `path.resolve(testsDir, '..')`，skill path 也從該 root
- *   組合，避免測試依賴 monorepo 結構。目前 `git init` 沒建立 baseline，確實無法產生有意義的
- *   diff；若保留現有語意斷言就移除 git init，若要測實際 patch，再先建立 baseline 並檢查 git diff。
- *   取捨是 git diff 更貼近編輯結果，但仍不能取代「唯一回覆、協定正確」等語意驗證。
- * @status: replied
- * 
- * @agent do 
- * 好你先改 root path 那個問題
- * @reply: 已將 root 改為 `apps/obsidian-skills` package，skill path 現在從 package root 組合。
- * @status: done
- */
-
-
 const testsDir = __dirname;
 const packageRoot = path.resolve(testsDir, '..');
 const templatePath = path.join(testsDir, 'test-template.md');
 
 
-console.log('START: markdown-comment-protocol integration test.');
+console.log('START: pilotfish obsidian-skills integration test.');
 
 function createTestingSandbox() {
 	const skillPath = path.join(

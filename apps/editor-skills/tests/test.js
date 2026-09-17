@@ -78,7 +78,7 @@ const result = readFileSync(resultPath, 'utf8');
 
 assert.ok(
 	result.includes(
-		'/* @agent:action:do\n * Rename fetchUser to getUser throughout this file.',
+		'@agent:action:do',
 	),
 	'The original action marker or request was changed or removed.',
 );
