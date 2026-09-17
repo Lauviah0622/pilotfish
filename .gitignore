@@ -28,7 +28,6 @@ Thumbs.db
 
 # Editor
 .vscode/settings.json
-.vscode/launch.json
 .idea/
 
 # Obsidian vault settings (user-specific)
