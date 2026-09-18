@@ -48,14 +48,15 @@
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "compile-unit": "tsc -p tsconfig.test.json",
+    "watch:unit": "tsc -p tsconfig.test.json -w",
     "check-types": "tsc --noEmit",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
     "format": "biome format --write src",
-    "test": "vscode-test"
+    "test": "pnpm run test:unit",
+    "test:integration": "vscode-test",
+    "test:unit": "pnpm run compile-unit && node --test \"dist/test/**/*.test.js\""
   },
   "pnpm": {
     "onlyBuiltDependencies": [
