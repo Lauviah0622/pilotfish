@@ -1,10 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import {
-	provideAgentAction,
-	provideAgentCompletion,
-} from './subscriptions/agentBlockCompletions';
+import { provideAgentAction, provideAgentCompletion } from './subscriptions/agentBlockCompletions';
 import { insertAgentBlock } from './subscriptions/insertAgentBlock';
 import { makeAgentCommand } from './subscriptions/makeAgentCommand';
 
