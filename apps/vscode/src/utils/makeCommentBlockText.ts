@@ -1,7 +1,5 @@
+import { getCommentSyntax } from './commentSyntax';
 import * as obsidianProtocol from './obsidian-skill-protocol';
-
-const lineCommentLangs = new Set(['python', 'ruby', 'shellscript', 'yaml', 'toml', 'perl', 'r']);
-const htmlLangs = new Set(['html', 'xml']);
 
 export function makeCommentBlockText(
 	langId: string,
@@ -12,13 +10,17 @@ export function makeCommentBlockText(
 	if (langId === 'markdown') {
 		return [obsidianProtocol.FIRST_LINE, ...text].map((line) => `> ${line}`).join('\n');
 	}
-	if (htmlLangs.has(langId)) {
-		const lines = text.map((l) => `${ind}  ${l}`).join('\n');
-		return `<!--\n${lines}\n${ind}-->`;
+
+	const syntax = getCommentSyntax(langId);
+	if (!syntax) return '';
+	if (syntax.kind === 'line') {
+		return text
+			.map((line, index) =>
+				index === 0 ? `${syntax.prefix} ${line}` : `${ind}${syntax.prefix} ${line}`,
+			)
+			.join('\n');
 	}
-	if (lineCommentLangs.has(langId)) {
-		return text.map((l, i) => (i === 0 ? `# ${l}` : `${ind}# ${l}`)).join('\n');
-	}
-	const lines = text.map((l) => `${ind} * ${l}`).join('\n');
-	return `/**\n${lines}\n${ind} */`;
+
+	const lines = text.map((line) => `${ind}${syntax.contentPrefix}${line}`).join('\n');
+	return `${syntax.insertOpen}\n${lines}\n${ind}${syntax.close}`;
 }
