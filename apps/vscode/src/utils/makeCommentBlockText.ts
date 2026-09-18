@@ -10,9 +10,7 @@ export function makeCommentBlockText(
 ): string {
 	const ind = ' '.repeat(config?.indentSpace ?? 0);
 	if (langId === 'markdown') {
-		return [obsidianProtocol.FIRST_LINE, ...text]
-      .map((line) => `> ${line}`)
-      .join('\n');
+		return [obsidianProtocol.FIRST_LINE, ...text].map((line) => `> ${line}`).join('\n');
 	}
 	if (htmlLangs.has(langId)) {
 		const lines = text.map((l) => `${ind}  ${l}`).join('\n');

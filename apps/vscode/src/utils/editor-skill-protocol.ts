@@ -1,6 +1,6 @@
 export const PREFIX = '@agent';
 export const ACTION = 'action';
-export const ACTION_PREFIX = `${PREFIX}:${ACTION}:`;
+export const ACTION_PREFIX = `${PREFIX}:${ACTION}`;
 
 export const ACTIONS = {
 	DO: 'do',
