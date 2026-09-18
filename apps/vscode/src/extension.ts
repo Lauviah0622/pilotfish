@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import {
 	provideAgentAction,
-	provideAgentBlockCompletionItems,
+	provideAgentCompletion,
 } from './subscriptions/agentBlockCompletions';
 import { insertAgentBlock } from './subscriptions/insertAgentBlock';
 import { makeAgentCommand } from './subscriptions/makeAgentCommand';
@@ -23,7 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
 		insertAgentBlock,
 		makeAgentCommand,
 		provideAgentAction,
-		provideAgentBlockCompletionItems,
+		provideAgentCompletion,
 	);
 }
 

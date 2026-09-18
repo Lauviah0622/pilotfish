@@ -9,13 +9,15 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "pilotfish-vscode.helloWorld",
-        "title": "Hello World"
+        "title": "PilotFish: Hello World"
       },
       {
         "command": "pilotfish-vscode.insertAgentBlock",

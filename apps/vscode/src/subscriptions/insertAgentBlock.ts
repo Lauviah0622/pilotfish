@@ -19,7 +19,7 @@ const insertAgentBlock = vscode.commands.registerCommand(
 		}
 		const langId = editor.document.languageId;
 		const isMarkdown = langId === 'markdown';
-		const content = isMarkdown ? '' : editorProtocol.ACTION_PREFIX;
+		const content = isMarkdown ? '' : `${editorProtocol.ACTION_PREFIX}:`;
 
 		const indentSpace = getIndentSpace(editor);
 		const text = makeCommentBlockText(langId, [content], { indentSpace });
