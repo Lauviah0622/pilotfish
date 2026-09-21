@@ -55,6 +55,7 @@ if (git.status !== 0) {
 	process.exit(git.status ?? 1);
 }
 
+// This prompt is for codex, so use $syntax to close to user interaction
 const PROMPT = '$collab test-result.md:1';
 const codex = spawnSync(
 	'codex',

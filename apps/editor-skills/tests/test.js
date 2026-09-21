@@ -48,22 +48,26 @@ if (git.status !== 0) {
 	process.exit(git.status ?? 1);
 }
 
+// This prompt is for codex, so use $syntax to close to user interaction
+const PROMPT =
+	'$collab test-result.md:1.';
+
 const codex = spawnSync(
-	'codex',
-	[
-		'exec',
-		'--ephemeral',
-		'--ignore-user-config',
-		'--sandbox',
-		'workspace-write',
-		'-C',
-		runDir,
-		'$collab test-result.ts:6',
-	],
-	{
-		encoding: 'utf8',
-		maxBuffer: 10 * 1024 * 1024,
-	},
+  'codex',
+  [
+    'exec',
+    '--ephemeral',
+    '--ignore-user-config',
+    '--sandbox',
+    'workspace-write',
+    '-C',
+    runDir,
+    PROMPT,
+  ],
+  {
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024,
+  },
 );
 
 if (codex.status !== 0) {
