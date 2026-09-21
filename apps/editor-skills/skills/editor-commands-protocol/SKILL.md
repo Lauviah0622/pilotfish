@@ -1,6 +1,6 @@
 ---
 name: collab
-description: Handle @agent action blocks embedded in source-code comments. Invoke with an optional file:line reference (for example, $collab src/foo.ts:42) to process the block at that position.
+description: Handle @agent action blocks embedded in source-code comments. Use when the user asks to process a collaboration block, optionally identified by a file:line reference.
 ---
 
 # Editor Collaboration Protocol
@@ -40,11 +40,11 @@ The marker is language-independent. Only the surrounding comment syntax changes.
 Never delete or rewrite the user's action marker or request. Append the reply in
 the same comment block, preserving the file's indentation and comment style.
 
-## Invocation
+## Target Selection
 
-- `$collab` handles the block described or quoted in the current request.
-- `$collab src/components/Foo.tsx:42` reads that file and handles one block at
-  that position.
+- When the request describes or quotes a block, handle that block.
+- When the request provides a `file:line` reference, read that file and handle
+  one block at that position.
 
 When a `file:line` is given:
 
