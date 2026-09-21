@@ -4,6 +4,6 @@
 	"private": true,
 	"description": "Pilotfish editor collaboration skills",
 	"scripts": {
-		"test": "node tests/test.js"
+		"test": "node --test"
 	}
 }

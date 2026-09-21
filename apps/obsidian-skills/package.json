@@ -4,6 +4,6 @@
 	"private": true,
 	"description": "Pilotfish Obsidian collaboration skills",
 	"scripts": {
-		"test": "node tests/test.js"
+		"test": "node --test"
 	}
 }
