@@ -21,8 +21,8 @@ Quick starting guide for new plugin devs:
 - Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
 - Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
 - Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
+- Run `npm run build` to compile your plugin from `src/main.ts` to `main.js`.
+- After changing `src/main.ts` (or other source files), run the build again and reload the plugin in Obsidian.
 - Reload Obsidian to load the new version of your plugin.
 - Enable plugin in settings window.
 - For updates to the Obsidian API run `npm update` in the command line under your repo folder.
@@ -32,7 +32,7 @@ Quick starting guide for new plugin devs:
 - Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
 - Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
 - Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
+- Run `npm run package`, then upload `manifest.json`, `main.js`, and `styles.css` from `dist/obsidian-pilotfish-plugin/` as release attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
 - Publish the release.
 
 > You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
@@ -50,11 +50,12 @@ Quick starting guide for new plugin devs:
 - Clone this repo.
 - Make sure your NodeJS is at least v18 (`node --version`).
 - `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+- `npm run build` to compile the plugin into the project root for local development.
+- `npm run package` to create a complete artifact in `dist/obsidian-pilotfish-plugin/`.
 
 ## Manually installing the plugin
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+- Run `npm run deploy -- /path/to/vault` to build, package, and copy the plugin into the vault. The deploy step preserves plugin data such as `data.json`.
 
 ## Improve code quality with eslint
 

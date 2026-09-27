@@ -21,16 +21,26 @@
 npm install
 ```
 
-### Dev (watch)
-
-```bash
-npm run dev
-```
-
-### Production build
+### Local development
 
 ```bash
 npm run build
+```
+
+The vault can load the app directory directly. Re-run the build and reload the
+plugin in Obsidian after source changes.
+
+### Production package
+
+```bash
+npm run package
+```
+
+This creates `dist/obsidian-pilotfish-plugin/` with the complete runtime
+artifact. To build, package, and copy it into a vault:
+
+```bash
+npm run deploy -- /path/to/vault
 ```
 
 ## Linting
