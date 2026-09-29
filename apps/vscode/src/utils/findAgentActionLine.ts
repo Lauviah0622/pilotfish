@@ -1,27 +1,13 @@
-import type * as vscode from 'vscode';
-import { type CommentSyntax, getCommentSyntax } from './commentSyntax';
-
-const AGENT_ACTION_PATTERN = /@agent:action:(?:do|ask|discuss)\b/;
-
-export type AgentActionPosition = {
-	line: number;
-	character: number;
-};
-
-export type LineTextSource = {
-	getLine: (line: number) => string;
-};
+import type { LineTextSource, Position } from './base';
+import type { CommentSyntax } from './commentSyntax';
+import { AGENT_ACTION_PATTERN } from './protocols/editor-skill-protocol';
 
 const findLineCommentStart = (text: string, prefix: string) => {
 	const start = text.length - text.trimStart().length;
 	return text.startsWith(prefix, start) ? start : undefined;
 };
 
-const findLineCommentAction = (
-	source: LineTextSource,
-	cursor: AgentActionPosition,
-	prefix: string,
-) => {
+const findLineCommentAction = (source: LineTextSource, cursor: Position, prefix: string) => {
 	const currentLine = source.getLine(cursor.line);
 	const currentCommentStart = findLineCommentStart(currentLine, prefix);
 	if (currentCommentStart === undefined || cursor.character < currentCommentStart + prefix.length) {
@@ -42,7 +28,7 @@ const findLineCommentAction = (
 
 const findBlockCommentAction = (
 	source: LineTextSource,
-	cursor: AgentActionPosition,
+	cursor: Position,
 	open: string,
 	close: string,
 ) => {
@@ -74,14 +60,14 @@ const findBlockCommentAction = (
 };
 
 export const findAgentActionLine = (
-  source: LineTextSource,
-  cursor: AgentActionPosition,
-  syntax: CommentSyntax | undefined,
+	source: LineTextSource,
+	cursor: Position,
+	syntax: CommentSyntax | undefined,
 ) => {
-  if (!syntax) return undefined;
-  if (syntax.kind === 'line') {
-    return findLineCommentAction(source, cursor, syntax.prefix);
-  }
+	if (!syntax) return undefined;
+	if (syntax.kind === 'line') {
+		return findLineCommentAction(source, cursor, syntax.prefix);
+	}
 
-  return findBlockCommentAction(source, cursor, syntax.open, syntax.close);
+	return findBlockCommentAction(source, cursor, syntax.open, syntax.close);
 };

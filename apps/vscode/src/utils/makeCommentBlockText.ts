@@ -1,5 +1,5 @@
 import { getCommentSyntax } from './commentSyntax';
-import * as obsidianProtocol from './obsidian-skill-protocol';
+import * as obsidianProtocol from './protocols/obsidian-skill-protocol';
 
 export function makeCommentBlockText(
 	langId: string,

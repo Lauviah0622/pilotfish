@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as editorProtocol from '../utils/editor-skill-protocol';
+import * as editorProtocol from '../utils/protocols/editor-skill-protocol';
 
 const SELECTORS = [
 	{ language: 'plaintext' },

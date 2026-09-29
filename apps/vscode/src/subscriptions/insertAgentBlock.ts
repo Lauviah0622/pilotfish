@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as editorProtocol from '../utils/editor-skill-protocol';
+import * as editorProtocol from '../utils/protocols/editor-skill-protocol';
 import { makeCommentBlockText } from '../utils/makeCommentBlockText';
 
 const getIndentSpace = (editor: vscode.TextEditor) => {

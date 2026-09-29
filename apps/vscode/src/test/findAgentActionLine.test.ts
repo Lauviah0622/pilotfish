@@ -1,7 +1,8 @@
 import * as assert from 'node:assert';
 import { suite, test } from 'node:test';
+import type { LineTextSource } from '../utils/base';
 import type { CommentSyntax } from '../utils/commentSyntax';
-import { type LineTextSource, findAgentActionLine } from '../utils/findAgentActionLine';
+import { findAgentActionLine } from '../utils/findAgentActionLine';
 
 const lineSyntax = { kind: 'line', prefix: '#' } satisfies CommentSyntax;
 const blockSyntax = {
@@ -13,6 +14,7 @@ const blockSyntax = {
 } satisfies CommentSyntax;
 
 const lines = (...text: string[]): LineTextSource => ({
+	lineCount: text.length,
 	getLine: (line) => text[line],
 });
 
@@ -20,10 +22,7 @@ suite('findAgentActionLineInText', () => {
 	test('finds an action in the current consecutive line-comment block', () => {
 		const source = lines('  # @agent:action:ask', '  # question', '  # cursor');
 
-		assert.strictEqual(
-			findAgentActionLine(source, { line: 2, character: 10 }, lineSyntax),
-			0,
-		);
+		assert.strictEqual(findAgentActionLine(source, { line: 2, character: 10 }, lineSyntax), 0);
 	});
 
 	test('stops at a non-comment line', () => {
@@ -38,10 +37,7 @@ suite('findAgentActionLineInText', () => {
 	test('finds an action in the surrounding block comment', () => {
 		const source = lines('/* @agent:action:discuss', ' * question', ' * cursor', ' */');
 
-		assert.strictEqual(
-			findAgentActionLine(source, { line: 2, character: 9 }, blockSyntax),
-			0,
-		);
+		assert.strictEqual(findAgentActionLine(source, { line: 2, character: 9 }, blockSyntax), 0);
 	});
 
 	test('does not cross a block-comment close before the cursor', () => {

@@ -1,6 +1,11 @@
+import { type CharacterSpan, type SpanRange, makeLineRange } from '../base';
 import type { CommentSyntax } from '../commentSyntax';
-import type { Action } from '../editor-skill-protocol';
-import { type CharacterSpan, type SpanRange, makeLineRange } from './base';
+import {
+	AGENT_ACTION_PATTERN,
+	AGENT_REPLY_PATTERN,
+	type Action,
+	type ReplyStatus,
+} from '../protocols/editor-skill-protocol';
 import { type InspectLine, type SearchLineContext, inspectMatch } from './searchLine';
 
 export type AgentCommentToken =
@@ -12,7 +17,7 @@ export type AgentCommentToken =
 	  }
 	| {
 			kind: 'agent:reply';
-			status: 'done' | 'pending';
+			status: ReplyStatus;
 			syntax: string;
 			range: SpanRange;
 	  };
@@ -22,10 +27,6 @@ export type CommentBoundaryToken = {
 	syntax: string;
 	range: SpanRange;
 };
-
-const AGENT_ACTION_PATTERN = /@agent:action:(do|ask|discuss)\b/g;
-const AGENT_REPLY_PATTERN = /@agent:reply:(done|pending)\b/g;
-
 
 const chooseNearestLineSpan = <T extends { range: SpanRange }>(
 	spans: T[],
@@ -67,7 +68,7 @@ const findMatchesFromText = (text: string, syntax: string): CharacterSpan[] => {
 export const AgentCommentInspector = (): InspectLine<AgentCommentToken> => (context) => {
 	const matches: AgentCommentToken[] = [];
 
-	for (const match of context.text.matchAll(AGENT_ACTION_PATTERN)) {
+	for (const match of context.text.matchAll(new RegExp(AGENT_ACTION_PATTERN, 'g'))) {
 		matches.push({
 			kind: 'agent:action',
 			type: match[1] as Action,
@@ -76,10 +77,10 @@ export const AgentCommentInspector = (): InspectLine<AgentCommentToken> => (cont
 		});
 	}
 
-	for (const match of context.text.matchAll(AGENT_REPLY_PATTERN)) {
+	for (const match of context.text.matchAll(new RegExp(AGENT_REPLY_PATTERN, 'g'))) {
 		matches.push({
 			kind: 'agent:reply',
-			status: match[1] as 'done' | 'pending',
+			status: match[1] as ReplyStatus,
 			syntax: match[0],
 			range: makeLineRange(context.position.line, match.index, match.index + match[0].length),
 		});

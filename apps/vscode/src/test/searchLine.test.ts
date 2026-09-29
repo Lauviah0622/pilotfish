@@ -1,10 +1,7 @@
 import * as assert from 'node:assert';
 import { suite, test } from 'node:test';
-import {
-	type LineTextSource,
-	type SearchLineContext,
-	searchLine,
-} from '../utils/searcher/searchLine';
+import type { LineTextSource } from '../utils/base';
+import { type SearchLineContext, searchLine } from '../utils/searcher/searchLine';
 
 const lines = (...text: string[]): LineTextSource => ({
 	lineCount: text.length,
@@ -99,4 +96,3 @@ suite('searchLine', () => {
 		assert.strictEqual(inspected, false);
 	});
 });
-

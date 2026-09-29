@@ -3,6 +3,11 @@ export type Position = {
 	character: number;
 };
 
+export type LineTextSource = {
+	lineCount: number;
+	getLine: (line: number) => string;
+};
+
 export type TextRange = readonly [Position, Position];
 
 declare const spanRangeBrand: unique symbol;

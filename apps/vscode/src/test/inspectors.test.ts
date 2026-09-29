@@ -1,12 +1,13 @@
 import * as assert from 'node:assert';
 import { suite, test } from 'node:test';
+import type { LineTextSource } from '../utils/base';
+import type { CommentSyntax } from '../utils/commentSyntax';
 import {
 	AgentCommentInspector,
 	CommentCloseInspector,
 	CommentStartInspector,
 } from '../utils/searcher/inspectors';
-import { type LineTextSource, searchLine } from '../utils/searcher/searchLine';
-import type { CommentSyntax } from '../utils/commentSyntax';
+import { searchLine } from '../utils/searcher/searchLine';
 
 const lineSyntax = { kind: 'line', prefix: '#' } satisfies CommentSyntax;
 const blockSyntax = {
