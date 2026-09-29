@@ -65,32 +65,39 @@ const findMatchesFromText = (text: string, syntax: string): CharacterSpan[] => {
 	return matches;
 };
 
-export const AgentCommentInspector = (): InspectLine<AgentCommentToken> => (context) => {
-	const matches: AgentCommentToken[] = [];
+export type AgentCommentKind = 'action' | 'reply';
 
-	for (const match of context.text.matchAll(new RegExp(AGENT_ACTION_PATTERN, 'g'))) {
-		matches.push({
-			kind: 'agent:action',
-			type: match[1] as Action,
-			syntax: match[0],
-			range: makeLineRange(context.position.line, match.index, match.index + match[0].length),
-		});
-	}
+export const AgentCommentInspector =
+	(kind?: AgentCommentKind): InspectLine<AgentCommentToken> =>
+	(context) => {
+		const matches: AgentCommentToken[] = [];
 
-	for (const match of context.text.matchAll(new RegExp(AGENT_REPLY_PATTERN, 'g'))) {
-		matches.push({
-			kind: 'agent:reply',
-			status: match[1] as ReplyStatus,
-			syntax: match[0],
-			range: makeLineRange(context.position.line, match.index, match.index + match[0].length),
-		});
-	}
+		if (kind === 'action' || !kind) {
+			for (const match of context.text.matchAll(new RegExp(AGENT_ACTION_PATTERN, 'g'))) {
+				matches.push({
+					kind: 'agent:action',
+					type: match[1] as Action,
+					syntax: match[0],
+					range: makeLineRange(context.position.line, match.index, match.index + match[0].length),
+				});
+			}
+		}
 
-	return inspectMatch(chooseNearestLineSpan(matches, context));
-};
+		if (kind === 'reply' || !kind) {
+			for (const match of context.text.matchAll(new RegExp(AGENT_REPLY_PATTERN, 'g'))) {
+				matches.push({
+					kind: 'agent:reply',
+					status: match[1] as ReplyStatus,
+					syntax: match[0],
+					range: makeLineRange(context.position.line, match.index, match.index + match[0].length),
+				});
+			}
+		}
 
-// 這個有點奇怪
-export const CommentStartInspector =
+		return inspectMatch(chooseNearestLineSpan(matches, context));
+	};
+
+export const BlockCommentStartInspector =
 	(syntax: CommentSyntax): InspectLine<CommentBoundaryToken> =>
 	(context) => {
 		if (syntax.kind === 'block') {
@@ -122,7 +129,7 @@ export const CommentStartInspector =
 		);
 	};
 
-export const CommentCloseInspector =
+export const BlockCommentCloseInspector =
 	(syntax: Extract<CommentSyntax, { kind: 'block' }>): InspectLine<CommentBoundaryToken> =>
 	(context) => {
 		const matches: CommentBoundaryToken[] = findMatchesFromText(context.text, syntax.close).map(

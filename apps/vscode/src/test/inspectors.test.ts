@@ -4,8 +4,8 @@ import type { LineTextSource } from '../utils/base';
 import type { CommentSyntax } from '../utils/commentSyntax';
 import {
 	AgentCommentInspector,
-	CommentCloseInspector,
-	CommentStartInspector,
+	BlockCommentCloseInspector,
+	BlockCommentStartInspector,
 } from '../utils/searcher/inspectors';
 import { searchLine } from '../utils/searcher/searchLine';
 
@@ -28,12 +28,17 @@ suite('inspectors', () => {
 		const text = '/* @agent:action:ask @agent:reply:done */';
 		const source = lines(text);
 
-		const next = searchLine(source, { line: 0, character: 0 }, 'down', AgentCommentInspector());
+		const next = searchLine(
+			source,
+			{ line: 0, character: 0 },
+			'down',
+			AgentCommentInspector('action'),
+		);
 		const previous = searchLine(
 			source,
 			{ line: 0, character: text.length },
 			'up',
-			AgentCommentInspector(),
+			AgentCommentInspector('reply'),
 		);
 
 		assert.strictEqual(next?.result.kind, 'agent:action');
@@ -45,7 +50,7 @@ suite('inspectors', () => {
 			lines('@agent:action:ask', '@agent:reply:done'),
 			{ line: 0, character: 0 },
 			'down',
-			AgentCommentInspector(),
+			AgentCommentInspector('reply'),
 			{ inclusive: false },
 		);
 
@@ -58,7 +63,7 @@ suite('inspectors', () => {
 			lines('code /* comment'),
 			{ line: 0, character: 0 },
 			'down',
-			CommentStartInspector(blockSyntax),
+			BlockCommentStartInspector(blockSyntax),
 		);
 
 		assert.deepStrictEqual(result?.result, {
@@ -76,7 +81,7 @@ suite('inspectors', () => {
 			lines('  # comment'),
 			{ line: 0, character: 0 },
 			'down',
-			CommentStartInspector(lineSyntax),
+			BlockCommentStartInspector(lineSyntax),
 		);
 
 		assert.deepStrictEqual(result?.result.range, [
@@ -91,7 +96,7 @@ suite('inspectors', () => {
 			lines(text),
 			{ line: 0, character: text.length },
 			'up',
-			CommentCloseInspector(blockSyntax),
+			BlockCommentCloseInspector(blockSyntax),
 		);
 
 		assert.deepStrictEqual(result?.result.range, [
@@ -105,14 +110,14 @@ suite('inspectors', () => {
 			lines('@agent:action:other'),
 			{ line: 0, character: 0 },
 			'down',
-			AgentCommentInspector(),
+			AgentCommentInspector('action'),
 		);
 
 		assert.strictEqual(result, undefined);
 	});
 });
 
-const REAL_WORLD_AGENT_BLOCK = `    /**
+const JS_AGENT_BLOCK_FIXTURE = `    /**
      * @agent:action:discuss
 		 * 這理想直接刪除掉當下個 comment block
 		 
@@ -129,22 +134,37 @@ const REAL_WORLD_AGENT_BLOCK = `    /**
 		 * @agent:reply:done — 可以共用定位邏輯，但不要直接共用只回傳行號的 'findAgentActionLine'。建議抽成 locator，回傳 comment range、目前 action range 與 reply range；make command 取 action 起始行，cleanup 再依範圍刪除。代價是 locator 要處理更多邊界，最好搭配 fixtures 測試。
      */`;
 
+const PYTHON_AGENT_BLOCK_FIXTURE = `    # @agent:action:discuss
+		# 這理想直接刪除掉當下個 comment block
+		#
+		# 有幾個狀況
+		# 一個 comment 中有多個 action | 一個 comment
+		# 這時候要考慮刪掉整個 comment block 還是單純的 action / reply block
+		#
+		# 還有要判斷 action block 跟 reply block
+		# @agent:reply:done — 建議以一組 action + reply 為最小刪除單位；cursor 在 reply 時往前歸屬最近的 action，範圍到下一個 action 或 comment 結尾。若整個 comment 只含這一組，就連 comment delimiters 一起刪除；整段刪除可另做明確指令。遇到孤立 reply 或無法判定的結構則不刪並提示。
+		#
+		# @agent:action:discuss
+		# 我覺得我想要用跟 findAgentActionLine 類似的邏輯，應該可以共用？你怎麼想
+		#
+		# @agent:reply:done — 可以共用定位邏輯，但不要直接共用只回傳行號的 'findAgentActionLine'。建議抽成 locator，回傳 comment range、目前 action range 與 reply range；make command 取 action 起始行，cleanup 再依範圍刪除。代價是 locator 要處理更多邊界，最好搭配 fixtures 測試。`;
+
 suite('inspectors with a real-world agent block', () => {
-	const source = lines(...REAL_WORLD_AGENT_BLOCK.split('\n'));
+	const source = lines(...JS_AGENT_BLOCK_FIXTURE.split('\n'));
 
 	test('finds the comment boundaries across mixed indentation', () => {
 		const start = searchLine(
 			source,
 			{ line: 0, character: 0 },
 			'down',
-			CommentStartInspector(blockSyntax),
+			BlockCommentStartInspector(blockSyntax),
 		);
 		const lastLine = source.lineCount - 1;
 		const close = searchLine(
 			source,
 			{ line: lastLine, character: source.getLine(lastLine).length },
 			'up',
-			CommentCloseInspector(blockSyntax),
+			BlockCommentCloseInspector(blockSyntax),
 		);
 
 		assert.deepStrictEqual(start?.result.range, [
@@ -193,3 +213,74 @@ suite('inspectors with a real-world agent block', () => {
 		assert.deepStrictEqual(collectTokens('up'), expected.slice().reverse());
 	});
 });
+
+suite('inspectors with a Python-style agent block', () => {
+	const source = lines(...PYTHON_AGENT_BLOCK_FIXTURE.split('\n'));
+
+	test('finds line-comment starts across mixed indentation', () => {
+		const first = searchLine(
+			source,
+			{ line: 0, character: 0 },
+			'down',
+			BlockCommentStartInspector(lineSyntax),
+		);
+		const lastLine = source.lineCount - 1;
+		const last = searchLine(
+			source,
+			{ line: lastLine, character: source.getLine(lastLine).length },
+			'up',
+			BlockCommentStartInspector(lineSyntax),
+		);
+
+		assert.deepStrictEqual(first?.result.range, [
+			{ line: 0, character: 4 },
+			{ line: 0, character: 5 },
+		]);
+		assert.deepStrictEqual(last?.result.range, [
+			{ line: 13, character: 2 },
+			{ line: 13, character: 3 },
+		]);
+	});
+
+	test('walks both exchanges in order from either direction', () => {
+		const collectTokens = (direction: 'up' | 'down') => {
+			const lastLine = source.lineCount - 1;
+			let position =
+				direction === 'down'
+					? { line: 0, character: 0 }
+					: { line: lastLine, character: source.getLine(lastLine).length };
+			const tokens = [];
+
+			for (let index = 0; index < 4; index += 1) {
+				const match = searchLine(source, position, direction, AgentCommentInspector(), {
+					inclusive: false,
+				});
+				assert.ok(match);
+				tokens.push({
+					line: match.line,
+					kind: match.result.kind,
+					value: match.result.kind === 'agent:action' ? match.result.type : match.result.status,
+				});
+				position = direction === 'down' ? match.result.range[1] : match.result.range[0];
+			}
+
+			return tokens;
+		};
+
+		const expected = [
+			{ line: 0, kind: 'agent:action', value: 'discuss' },
+			{ line: 8, kind: 'agent:reply', value: 'done' },
+			{ line: 10, kind: 'agent:action', value: 'discuss' },
+			{ line: 13, kind: 'agent:reply', value: 'done' },
+		];
+
+		assert.deepStrictEqual(collectTokens('down'), expected);
+		assert.deepStrictEqual(collectTokens('up'), expected.slice().reverse());
+	});
+});
+
+/**
+ * @agent:action:do
+ * 用上面的 FIXTURE，生一個 python style 的範例？看看會不會過？
+ * @agent:reply:done — 已新增對應的 Python `#` fixture，並驗證混合縮排與雙向 marker 掃描；24 個單元測試全數通過。
+ */

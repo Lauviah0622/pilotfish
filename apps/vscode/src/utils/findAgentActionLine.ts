@@ -1,62 +1,56 @@
 import type { LineTextSource, Position } from './base';
 import type { CommentSyntax } from './commentSyntax';
-import { AGENT_ACTION_PATTERN } from './protocols/editor-skill-protocol';
+import {
+	AgentCommentInspector,
+	BlockCommentCloseInspector,
+	BlockCommentStartInspector,
+	searchLine,
+} from './searcher';
 
-const findLineCommentStart = (text: string, prefix: string) => {
-	const start = text.length - text.trimStart().length;
-	return text.startsWith(prefix, start) ? start : undefined;
-};
+const comparePositions = (left: Position, right: Position) =>
+	left.line === right.line ? left.character - right.character : left.line - right.line;
 
-const findLineCommentAction = (source: LineTextSource, cursor: Position, prefix: string) => {
-	const currentLine = source.getLine(cursor.line);
-	const currentCommentStart = findLineCommentStart(currentLine, prefix);
-	if (currentCommentStart === undefined || cursor.character < currentCommentStart + prefix.length) {
-		return undefined;
-	}
+const findLineCommentAction = (
+	source: LineTextSource,
+	cursor: Position,
+	syntax: Extract<CommentSyntax, { kind: 'line' }>,
+) => {
+	const inspectCommentStart = BlockCommentStartInspector(syntax);
+	const inspectAction = AgentCommentInspector('action');
 
-	for (let line = cursor.line; line >= 0; line--) {
-		const text = source.getLine(line);
-		const commentStart = findLineCommentStart(text, prefix);
-		if (commentStart === undefined) break;
-		if (AGENT_ACTION_PATTERN.test(text.slice(commentStart + prefix.length))) {
-			return line;
+	return searchLine(source, cursor, 'up', (context) => {
+		const commentStart = inspectCommentStart(context);
+		if (commentStart.kind !== 'found') return { kind: 'stop' };
+		if (context.isFirst && cursor.character < commentStart.value.range[1].character) {
+			return { kind: 'stop' };
 		}
-	}
 
-	return undefined;
+		const action = inspectAction(context);
+		return action.kind === 'found'
+			? { kind: 'found', value: context.position.line }
+			: { kind: 'continue' };
+	})?.result;
 };
 
 const findBlockCommentAction = (
 	source: LineTextSource,
 	cursor: Position,
-	open: string,
-	close: string,
+	syntax: Extract<CommentSyntax, { kind: 'block' }>,
 ) => {
-	let actionLine: number | undefined;
+	const close = searchLine(source, cursor, 'down', BlockCommentCloseInspector(syntax));
+	if (!close) return undefined;
 
-	for (let line = cursor.line; line >= 0; line--) {
-		const text = source.getLine(line);
-		const textBeforeCursor = line === cursor.line ? text.slice(0, cursor.character) : text;
-		const openIndex = textBeforeCursor.lastIndexOf(open);
-		const closeIndex = textBeforeCursor.lastIndexOf(close);
+	const start = searchLine(source, close.result.range[0], 'up', BlockCommentStartInspector(syntax));
+	if (!start || comparePositions(start.result.range[0], cursor) > 0) return undefined;
 
-		if (closeIndex > openIndex) return undefined;
-
-		const closeAfterCursor = line === cursor.line ? text.indexOf(close, cursor.character) : -1;
-		const commentText = text.slice(
-			openIndex === -1 ? 0 : openIndex + open.length,
-			closeAfterCursor === -1 ? text.length : closeAfterCursor,
-		);
-		if (actionLine === undefined && AGENT_ACTION_PATTERN.test(commentText)) {
-			actionLine = line;
-		}
-
-		if (openIndex !== -1) {
-			return actionLine;
-		}
+	const action = searchLine(source, close.result.range[0], 'up', AgentCommentInspector('action'), {
+		inclusive: false,
+	});
+	if (!action || comparePositions(action.result.range[0], start.result.range[1]) < 0) {
+		return undefined;
 	}
 
-	return undefined;
+	return action.line;
 };
 
 export const findAgentActionLine = (
@@ -65,9 +59,7 @@ export const findAgentActionLine = (
 	syntax: CommentSyntax | undefined,
 ) => {
 	if (!syntax) return undefined;
-	if (syntax.kind === 'line') {
-		return findLineCommentAction(source, cursor, syntax.prefix);
-	}
-
-	return findBlockCommentAction(source, cursor, syntax.open, syntax.close);
+	return syntax.kind === 'line'
+		? findLineCommentAction(source, cursor, syntax)
+		: findBlockCommentAction(source, cursor, syntax);
 };
