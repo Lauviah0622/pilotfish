@@ -51,9 +51,9 @@
     "compile-unit": "tsc -p tsconfig.test.json",
     "watch:unit": "tsc -p tsconfig.test.json -w",
     "check-types": "tsc --noEmit",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src",
-    "format": "biome format --write src",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "test": "pnpm run test:unit",
     "test:integration": "vscode-test",
     "test:unit": "pnpm run compile-unit && node --test \"dist/test/**/*.test.js\""
