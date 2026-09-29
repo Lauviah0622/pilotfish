@@ -1,12 +1,16 @@
 export type CommentSyntax =
-	| { kind: 'line'; prefix: string }
-	| {
-			kind: 'block';
-			open: string;
-			close: string;
-			insertOpen: string;
-			contentPrefix: string;
-	  };
+  | { kind: 'line'; prefix: string }
+  | {
+      kind: 'block';
+      open: string;
+      close: string;
+      /**
+       * insert open is for jsdoc. it diffriciate the "/**" and  "/*".
+       * "/**" is for doc and "/*" not
+       */
+      insertOpen: string;
+      contentPrefix: string;
+    };
 
 const lineCommentLangs = new Set(['python', 'ruby', 'shellscript', 'yaml', 'toml', 'perl', 'r']);
 const htmlLangs = new Set(['html', 'xml']);
