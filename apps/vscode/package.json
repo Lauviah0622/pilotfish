@@ -48,7 +48,7 @@
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
-    "compile-unit": "tsc -p tsconfig.test.json",
+    "compile-unit": "node -e \"require('node:fs').rmSync('dist/test', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
     "watch:unit": "tsc -p tsconfig.test.json -w",
     "check-types": "tsc --noEmit",
     "lint": "biome check .",
