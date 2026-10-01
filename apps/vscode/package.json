@@ -42,7 +42,7 @@
   "scripts": {
     "vscode:prepublish": "pnpm run package",
     "vscode:package": "pnpm exec vsce package --out pilotfish-vscode.vsix",
-    "vscode:local-install": "code --install-extension pilotfish-vscode.vsix --force",
+    "vscode:local-install": "pnpm run vscode:package && code --install-extension pilotfish-vscode.vsix --force",
     "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
