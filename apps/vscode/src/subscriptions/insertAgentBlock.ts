@@ -4,11 +4,9 @@ import * as editorProtocol from '../utils/protocols/editor-skill-protocol';
 import * as onsidianProtocol from '../utils/protocols/obsidian-skill-protocol';
 import { putTextIntoBlock } from '../utils/putTextIntoBlock';
 
-const getIndentSpace = (editor: vscode.TextEditor) => {
-	const indentSpace =
-		editor.document.lineAt(editor.selection.active.line).text.match(/^(\s*)/)?.[1]?.length ?? 0;
 
-	return indentSpace;
+const getIndent = (editor: vscode.TextEditor) => {
+	return editor.document.lineAt(editor.selection.active.line).text.match(/^[\t ]*/)?.[0] ?? '';
 };
 
 const getActionText = (langId: string) => {
@@ -31,11 +29,11 @@ const insertAgentBlock = vscode.commands.registerCommand(
 		const langId = editor.document.languageId;
 		const actionText = getActionText(langId);
 
-		const indentSpace = getIndentSpace(editor);
+		const indent = getIndent(editor);
 		const syntax = getBlockSyntax(langId);
 
 		const text = putTextIntoBlock(syntax, [actionText], {
-			indentSpace,
+			indent,
 			indentFirstLine: false,
 		});
 		const insertionPoint = editor.selection.active;
@@ -46,8 +44,6 @@ const insertAgentBlock = vscode.commands.registerCommand(
 			}
 		});
 		if (!didInsert) return;
-
-		// TODO 這裡要重寫
 
 		// compute the row count and ch count of inserted content in whole text
 		const idx = text.lastIndexOf(actionText);
