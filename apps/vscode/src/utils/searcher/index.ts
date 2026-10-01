@@ -1,10 +1,10 @@
 export {
-  AgentCommentInspector,
-  BlockCommentCloseInspector,
-  BlockCommentStartInspector,
-  type AgentCommentKind,
-  type AgentCommentToken,
-  type CommentBoundaryToken,
+	AgentCommentInspector,
+	BlockCommentCloseInspector,
+	BlockCommentStartInspector,
+	type AgentCommentKind,
+	type AgentCommentToken,
+	type CommentBoundaryToken,
 } from './inspectors';
 export {
 	inspectMatch,
