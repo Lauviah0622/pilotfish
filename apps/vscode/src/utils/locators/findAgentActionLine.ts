@@ -1,11 +1,11 @@
-import type { LineTextSource, Position } from './base';
-import type { BlockSyntax } from './blockSyntax';
+import type { LineTextSource, Position } from '../base';
+import type { BlockSyntax } from '../blockSyntax';
 import {
 	AgentCommentInspector,
 	BlockCommentCloseInspector,
 	BlockCommentStartInspector,
 	searchLine,
-} from './searcher';
+} from '../searcher';
 
 const comparePositions = (left: Position, right: Position) =>
 	left.line === right.line ? left.character - right.character : left.line - right.line;

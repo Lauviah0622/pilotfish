@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import { suite, test } from 'node:test';
 import type { LineTextSource } from '../utils/base';
 import type { BlockSyntax } from '../utils/blockSyntax';
-import { findAgentActionLine } from '../utils/findAgentActionLine';
+import { findAgentActionLine } from '../utils/locators/findAgentActionLine';
 
 const lineSyntax = { kind: 'line', prefix: '#' } satisfies BlockSyntax;
 const blockSyntax = {

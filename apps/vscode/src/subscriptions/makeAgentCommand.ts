@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getBlockSyntax } from '../utils/blockSyntax';
-import { findAgentActionLine } from '../utils/findAgentActionLine';
+import { findAgentActionLine } from '../utils/locators/findAgentActionLine';
 
 /**
  * the agent command format would be like:
