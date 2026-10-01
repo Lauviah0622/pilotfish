@@ -1,5 +1,5 @@
 import { type CharacterSpan, type SpanRange, makeLineRange } from '../base';
-import type { CommentSyntax } from '../commentSyntax';
+import type { BlockSyntax } from '../blockSyntax';
 import {
 	AGENT_ACTION_PATTERN,
 	AGENT_REPLY_PATTERN,
@@ -98,7 +98,7 @@ export const AgentCommentInspector =
 	};
 
 export const BlockCommentStartInspector =
-	(syntax: CommentSyntax): InspectLine<CommentBoundaryToken> =>
+	(syntax: BlockSyntax): InspectLine<CommentBoundaryToken> =>
 	(context) => {
 		if (syntax.kind === 'block') {
 			const matches: CommentBoundaryToken[] = findMatchesFromText(context.text, syntax.open).map(
@@ -130,7 +130,7 @@ export const BlockCommentStartInspector =
 	};
 
 export const BlockCommentCloseInspector =
-	(syntax: Extract<CommentSyntax, { kind: 'block' }>): InspectLine<CommentBoundaryToken> =>
+	(syntax: Extract<BlockSyntax, { kind: 'block' }>): InspectLine<CommentBoundaryToken> =>
 	(context) => {
 		const matches: CommentBoundaryToken[] = findMatchesFromText(context.text, syntax.close).map(
 			([from, to]) => ({
