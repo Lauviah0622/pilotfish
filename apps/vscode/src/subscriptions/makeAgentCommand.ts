@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getCommentSyntax } from '../utils/commentSyntax';
+import { getBlockSyntax } from '../utils/blockSyntax';
 import { findAgentActionLine } from '../utils/findAgentActionLine';
 
 /**
@@ -17,7 +17,7 @@ const makeAgentCommand = vscode.commands.registerCommand(
 		}
 		const uri = editor.document.uri;
 		const { start, end } = editor.selection;
-		const syntax = getCommentSyntax(editor.document.languageId);
+		const syntax = getBlockSyntax(editor.document.languageId);
 
 		const actionLine = findAgentActionLine(
 			{

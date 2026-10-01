@@ -1,5 +1,5 @@
 import type { LineTextSource, Position } from './base';
-import type { CommentSyntax } from './commentSyntax';
+import type { BlockSyntax } from './blockSyntax';
 import {
 	AgentCommentInspector,
 	BlockCommentCloseInspector,
@@ -13,7 +13,7 @@ const comparePositions = (left: Position, right: Position) =>
 const findLineCommentAction = (
 	source: LineTextSource,
 	cursor: Position,
-	syntax: Extract<CommentSyntax, { kind: 'line' }>,
+	syntax: Extract<BlockSyntax, { kind: 'line' }>,
 ) => {
 	const inspectCommentStart = BlockCommentStartInspector(syntax);
 	const inspectAction = AgentCommentInspector('action');
@@ -35,7 +35,7 @@ const findLineCommentAction = (
 const findBlockCommentAction = (
 	source: LineTextSource,
 	cursor: Position,
-	syntax: Extract<CommentSyntax, { kind: 'block' }>,
+	syntax: Extract<BlockSyntax, { kind: 'block' }>,
 ) => {
 	const close = searchLine(source, cursor, 'down', BlockCommentCloseInspector(syntax));
 	if (!close) return undefined;
@@ -56,7 +56,7 @@ const findBlockCommentAction = (
 export const findAgentActionLine = (
 	source: LineTextSource,
 	cursor: Position,
-	syntax: CommentSyntax | undefined,
+	syntax: BlockSyntax | undefined,
 ) => {
 	if (!syntax) return undefined;
 	return syntax.kind === 'line'

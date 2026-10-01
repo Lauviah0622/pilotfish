@@ -1,17 +1,17 @@
 import * as assert from 'node:assert';
 import { suite, test } from 'node:test';
 import type { LineTextSource } from '../utils/base';
-import type { CommentSyntax } from '../utils/commentSyntax';
+import type { BlockSyntax } from '../utils/blockSyntax';
 import { findAgentActionLine } from '../utils/findAgentActionLine';
 
-const lineSyntax = { kind: 'line', prefix: '#' } satisfies CommentSyntax;
+const lineSyntax = { kind: 'line', prefix: '#' } satisfies BlockSyntax;
 const blockSyntax = {
 	kind: 'block',
 	open: '/*',
 	close: '*/',
 	insertOpen: '/**',
 	contentPrefix: ' * ',
-} satisfies CommentSyntax;
+} satisfies BlockSyntax;
 
 const lines = (...text: string[]): LineTextSource => ({
 	lineCount: text.length,

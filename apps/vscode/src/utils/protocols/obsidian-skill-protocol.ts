@@ -1,1 +1,1 @@
-export const FIRST_LINE = '[!Comment] For Agent';
+export const FOR_AGENT_CALLOUT = '[!Comment] For Agent';
