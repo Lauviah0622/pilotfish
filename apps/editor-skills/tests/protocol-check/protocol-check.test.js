@@ -19,6 +19,14 @@ const templatePath = path.join(testsDir, 'protocol-check-template.ts');
 
 const TEMP_FILE_NAME = 'test-result.ts';
 
+/**
+ * @agent:action:discuss
+ * 想把一些 test basic suite 抽出來，討論看看怎作
+ 
+ */
+
+// 這個東西應該變成 createAgentTestingSandbox(skillsPath, sandboxPath, sandboxConfig: {installedSkill: path}) 這樣概念的東西我想
+
 function createTestingSandbox() {
   const skillPath = path.join(packageRoot, 'skills/editor-commands-protocol');
   const runDir = mkdtempSync(path.join(tmpdir(), 'pilotfish-editor-skill-'));
@@ -26,6 +34,8 @@ function createTestingSandbox() {
 
   mkdirSync(installedSkillPath, { recursive: true });
   cpSync(skillPath, installedSkillPath, { recursive: true });
+
+	// 原本有個 template 的概念。這個應該不用了。這會讓整個流程有點麻煩？可能直接都放在 /sandbox 或者是 /template 裡面。
   copyFileSync(templatePath, path.join(runDir, TEMP_FILE_NAME));
 
   return {
@@ -44,11 +54,16 @@ test('collab completes a source action using the canonical protocol', () => {
     encoding: 'utf8',
   });
 
+
+	// git init 應該要放在 createAgentTestingSandbox 裡面。
   assert.equal(
     git.status,
     0,
     git.stderr || 'Failed to initialize fixture repository.',
   );
+
+
+	// codex 的 runner 要分開變成另一個 utils
 
   // Keep the prompt standalone for readable
   const CODEX_PROMPT = `$collab ${TEMP_FILE_NAME}:1`;
@@ -71,6 +86,7 @@ test('collab completes a source action using the canonical protocol', () => {
     },
   );
 
+	// assertion 的部分就保留
   assert.equal(
     codex.status,
     0,
