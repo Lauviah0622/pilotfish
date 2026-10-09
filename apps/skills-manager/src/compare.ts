@@ -26,6 +26,19 @@ export function takeSnapshot(config: AppConfig): Snapshot {
 	return { source, agents };
 }
 
+/**
+ * 比較 SSOT 與 agent 端同一個 skill root 的檔案清單。
+ *
+ * @remarks
+ * 以相對路徑配對檔案，再比較同一路徑的 SHA-256。`changes` 描述的是
+ * agent 端要與 SSOT 一致時的變動：`added` 是 SSOT 獨有，`removed` 是
+ * agent 端獨有，`modified` 是兩邊都有但內容不同。檔案大小與修改時間不參與比較。
+ *
+ * @param source - SSOT 的 skill root；`null` 表示來源不存在。
+ * @param target - agent 端的同名 skill root；`null` 表示尚未安裝。
+ * @returns 比較狀態與檔案變動。只有來源時為 `missing`，
+ * 只有目標時為 `unmanaged`；兩者皆無或檔案相同時為 `synced`，否則為 `different`。
+ */
 export function compareSkills(
 	source: SkillInventoryEntry | null,
 	target: SkillInventoryEntry | null,
