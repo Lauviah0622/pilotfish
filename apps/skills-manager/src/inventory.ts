@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import ignore, { type Ignore } from 'ignore';
 import { dirExists, fileExists, hashFile, listFiles } from './fsutil.js';
+import { pathMatcher } from './path-rules.js';
 import type { InventoryResult, SkillFile, SkillInventoryEntry } from './types.js';
 
 const UNSAFE_NAME = /(^$)|(^\.{1,2}$)|[/\\\0]/;
@@ -26,7 +27,10 @@ function makeIgnorer(skillRoot: string): Ignore {
  * Scan a root directory and return the skills it contains. Each direct
  * subdirectory is treated as a skill candidate.
  */
-export function scanInventory(root: string): InventoryResult {
+export function scanInventory(
+	root: string,
+	excludePatterns: readonly string[] = [],
+): InventoryResult {
 	if (!dirExists(root)) {
 		return { root, skills: [], diagnostics: [], rootExists: false };
 	}
@@ -47,6 +51,7 @@ export function scanInventory(root: string): InventoryResult {
 		};
 	}
 
+	const excluded = pathMatcher(excludePatterns);
 	const diagnostics: string[] = [];
 	const skills: SkillInventoryEntry[] = [];
 
@@ -54,17 +59,22 @@ export function scanInventory(root: string): InventoryResult {
 		if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
 		const name = String(entry.name);
 		const skillPath = join(root, name);
+		if (excluded.ignores(`${name}/`)) continue;
 		if (!isValidSkillName(name)) {
 			diagnostics.push(`Skipped invalid skill directory name: ${name}`);
 			continue;
 		}
-		skills.push(readSkill(name, skillPath));
+		skills.push(readSkill(name, skillPath, excluded));
 	}
 
 	return { root, skills, diagnostics, rootExists: true };
 }
 
-function readSkill(name: string, root: string): SkillInventoryEntry {
+export function readSkill(
+	name: string,
+	root: string,
+	excluded: Ignore = pathMatcher([]),
+): SkillInventoryEntry {
 	const diagnostics: string[] = [];
 	const skillMd = join(root, 'SKILL.md');
 	let valid = true;
@@ -75,7 +85,7 @@ function readSkill(name: string, root: string): SkillInventoryEntry {
 	let files: SkillFile[] = [];
 	try {
 		const ig = makeIgnorer(root);
-		const walked = listFiles(root, ig);
+		const walked = listFiles(root, ig, (path) => excluded.ignores(`${name}/${path}`));
 		files = walked.map((w) => ({
 			relPath: w.rel,
 			size: w.size,

@@ -53,6 +53,7 @@ export function runDiff(config: AppConfig, options: DiffOptions): DiffResult {
 
 function renderSummaryLine(t: DeploymentTarget): string {
 	const header = `${bold(`${t.agent}:${t.skill}`)}  ${paintStatus(t.status)}`;
+	if (t.blockedReason) return `${header}  ${dim(t.blockedReason)}`;
 	if (t.status === 'synced' || t.status === 'missing') return header;
 	const counts = countChanges(t.changes);
 	return `${header}  ${dim(`${counts.added} added, ${counts.removed} removed, ${counts.modified} modified`)}`;
@@ -60,6 +61,7 @@ function renderSummaryLine(t: DeploymentTarget): string {
 
 function renderStatLines(t: DeploymentTarget): string {
 	const header = `${bold(`${t.agent}:${t.skill}`)}  ${paintStatus(t.status)}`;
+	if (t.blockedReason) return `${header}  ${dim(t.blockedReason)}`;
 	if (t.changes.length === 0) return header;
 	const rows: string[] = [header];
 	for (const c of t.changes) {
@@ -70,6 +72,7 @@ function renderStatLines(t: DeploymentTarget): string {
 
 function renderFullTarget(t: DeploymentTarget): string {
 	const header = `${bold(`${t.agent}:${t.skill}`)}  ${paintStatus(t.status)}`;
+	if (t.blockedReason) return `${header}  ${dim(t.blockedReason)}`;
 	if (t.status === 'synced') return header;
 	if (t.status === 'missing') {
 		const files = t.source?.files.map((f) => `  ${green('+')} ${f.relPath}`).join('\n') ?? '';

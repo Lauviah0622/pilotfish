@@ -4,6 +4,8 @@ export interface AgentConfig {
 	readonly name: AgentName;
 	readonly envVar: string;
 	readonly dir: string;
+	readonly scanExcludePatterns: readonly string[];
+	readonly writeDenyPatterns: readonly string[];
 }
 
 export interface AppConfig {
@@ -12,7 +14,7 @@ export interface AppConfig {
 	readonly agents: readonly AgentConfig[];
 }
 
-export type SkillStatus = 'synced' | 'missing' | 'different' | 'unmanaged';
+export type SkillStatus = 'synced' | 'missing' | 'different' | 'unmanaged' | 'blocked';
 
 export interface SkillFile {
 	readonly relPath: string;
@@ -47,6 +49,7 @@ export interface DeploymentTarget {
 	readonly source: SkillInventoryEntry | null;
 	readonly target: SkillInventoryEntry | null;
 	readonly changes: readonly FileChange[];
+	readonly blockedReason?: string;
 }
 
 export interface Selector {

@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -61,4 +61,24 @@ export function run(cwd, args, extraEnv = {}) {
 
 export function readText(path) {
 	return readFileSync(path, 'utf8');
+}
+
+/** Keep the parent event loop free for fixture HTTP servers. */
+export function runAsync(cwd, args, extraEnv = {}) {
+	return new Promise((resolve, reject) => {
+		const child = spawn(process.execPath, [CLI, ...args], {
+			cwd,
+			env: { ...process.env, NO_COLOR: '1', ...extraEnv },
+		});
+		let stdout = '';
+		let stderr = '';
+		child.stdout.setEncoding('utf8').on('data', (data) => {
+			stdout += data;
+		});
+		child.stderr.setEncoding('utf8').on('data', (data) => {
+			stderr += data;
+		});
+		child.on('error', reject);
+		child.on('close', (status) => resolve({ status, stdout, stderr }));
+	});
 }

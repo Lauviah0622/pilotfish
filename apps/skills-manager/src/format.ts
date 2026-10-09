@@ -3,6 +3,7 @@ import pc from 'picocolors';
 import type { SkillStatus } from './types.js';
 
 export const STATUS_SYMBOL: Record<SkillStatus, string> = {
+	blocked: '×',
 	synced: '✓',
 	missing: '·',
 	different: '≠',
@@ -10,6 +11,7 @@ export const STATUS_SYMBOL: Record<SkillStatus, string> = {
 };
 
 export const STATUS_WORD: Record<SkillStatus, string> = {
+	blocked: 'blocked',
 	synced: 'synced',
 	missing: 'missing',
 	different: 'different',
@@ -17,6 +19,7 @@ export const STATUS_WORD: Record<SkillStatus, string> = {
 };
 
 const STATUS_COLOR: Record<SkillStatus, (s: string) => string> = {
+	blocked: pc.red,
 	synced: pc.green,
 	missing: pc.yellow,
 	different: pc.red,

@@ -29,6 +29,14 @@ export function runDoctor(config: AppConfig): DoctorResult {
 	}
 	sections.push(formatTable(pathRows));
 
+	// Effective rules remain visible even when matching paths are excluded.
+	sections.push('');
+	sections.push(bold('Path rules'));
+	for (const agent of config.agents) {
+		sections.push(`  ${agent.name} scan exclude: ${JSON.stringify(agent.scanExcludePatterns)}`);
+		sections.push(`  ${agent.name} write deny: ${JSON.stringify(agent.writeDenyPatterns)}`);
+	}
+
 	// Source inventory.
 	sections.push('');
 	sections.push(bold('SSOT skills'));
@@ -95,20 +103,26 @@ export function runDoctor(config: AppConfig): DoctorResult {
 	}
 
 	// Summary counts.
-	const counts: Record<string, number> = { synced: 0, missing: 0, different: 0, unmanaged: 0 };
+	const counts: Record<string, number> = {
+		synced: 0,
+		missing: 0,
+		different: 0,
+		unmanaged: 0,
+		blocked: 0,
+	};
 	for (const t of targets) counts[t.status] = (counts[t.status] ?? 0) + 1;
 	counts.unmanaged = unmanaged.length;
 
 	sections.push('');
 	sections.push(bold('Summary'));
 	const summaryRows: string[][] = [];
-	for (const k of ['synced', 'missing', 'different', 'unmanaged'] as const) {
+	for (const k of ['synced', 'missing', 'different', 'unmanaged', 'blocked'] as const) {
 		summaryRows.push([`  ${STATUS_WORD[k]}`, String(counts[k])]);
 	}
 	sections.push(formatTable(summaryRows));
 
-	// `unmanaged` is NOT drift per spec — only missing/different count.
-	const drift = counts.missing! + counts.different!;
+	// Unmanaged entries are informational; blocked deployments require attention.
+	const drift = counts.missing! + counts.different! + counts.blocked!;
 	const exitCode: 0 | 1 = drift > 0 ? 1 : 0;
 
 	return { exitCode, output: sections.join('\n') };

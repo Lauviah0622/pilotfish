@@ -14,7 +14,11 @@ export interface WalkedFile {
  * Recursively list files under `root`, honoring an `ignore` matcher. Returns
  * POSIX-style relative paths, sorted lexicographically.
  */
-export function listFiles(root: string, ignorer: Ignore): WalkedFile[] {
+export function listFiles(
+	root: string,
+	ignorer: Ignore,
+	excluded?: (path: string) => boolean,
+): WalkedFile[] {
 	const crawler = new fdir()
 		.withRelativePaths()
 		.withPathSeparator('/')
@@ -23,9 +27,9 @@ export function listFiles(root: string, ignorer: Ignore): WalkedFile[] {
 			// trailing slash) so `ignore` can match directory rules correctly.
 			const rel = toRelative(root, dirPath);
 			if (rel === '') return false;
-			return ignorer.ignores(`${rel}/`);
+			return ignorer.ignores(`${rel}/`) || (excluded?.(`${rel}/`) ?? false);
 		})
-		.filter((path) => !ignorer.ignores(path))
+		.filter((path) => !ignorer.ignores(path) && !excluded?.(path))
 		.crawl(root);
 	const relPaths = crawler.sync();
 

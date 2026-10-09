@@ -1,10 +1,9 @@
 import { join } from 'node:path';
 import { compareSkills, selectTargets, takeSnapshot } from '../compare.js';
 import { bold, dim, green, paintStatus, red, yellow } from '../format.js';
-import { atomicDeploy, ensureDir } from '../fsutil.js';
-import { scanInventory } from '../inventory.js';
+import { atomicDeploy, dirExists, ensureDir } from '../fsutil.js';
+import { readSkill } from '../inventory.js';
 import type {
-	AgentConfig,
 	AppConfig,
 	AppliedOutcome,
 	DeploymentTarget,
@@ -25,7 +24,15 @@ export interface ApplyResult {
 
 export function runApply(config: AppConfig, options: ApplyOptions): ApplyResult {
 	const snapshot = takeSnapshot(config);
-	const targets = selectTargets(config, snapshot, options.selector);
+	const targets = selectTargets(config, snapshot, options.selector).map((t) => {
+		if (t.blockedReason) return t;
+		// Scan exclusions do not authorize overwriting an existing directory.
+		// Inspect only this deployment target for planning and verification.
+		const agent = config.agents.find((a) => a.name === t.agent)!;
+		const path = join(agent.dir, t.skill);
+		const target = dirExists(path) ? readSkill(t.skill, path) : null;
+		return { ...t, target, ...compareSkills(t.source, target) };
+	});
 
 	// Fail if any in-scope SSOT skill is invalid.
 	const invalid = snapshot.source.skills
@@ -71,7 +78,8 @@ export function runApply(config: AppConfig, options: ApplyOptions): ApplyResult 
 	} else {
 		// Dry-run — still flag targets that would be refused without --force.
 		for (const t of targets) {
-			if (t.status === 'different' && !options.force) hasConflict = true;
+			if (t.status === 'blocked' || (t.status === 'different' && !options.force))
+				hasConflict = true;
 		}
 	}
 
@@ -81,6 +89,7 @@ export function runApply(config: AppConfig, options: ApplyOptions): ApplyResult 
 
 function renderPlanLine(t: DeploymentTarget, force: boolean): string {
 	const header = `${bold(`${t.agent}:${t.skill}`)}  ${paintStatus(t.status)}`;
+	if (t.blockedReason) return `${header}  ${red(t.blockedReason)}`;
 	const plan = plannedAction(t.status, force);
 	return `${header}  ${describeAction(plan)}`;
 }
@@ -95,6 +104,8 @@ type Action = 'create' | 'replace' | 'no-op' | 'refuse' | 'unmanaged-skip';
 
 function plannedAction(status: SkillStatus, force: boolean): Action {
 	switch (status) {
+		case 'blocked':
+			return 'refuse';
 		case 'missing':
 			return 'create';
 		case 'synced':
@@ -137,6 +148,9 @@ function colorForAction(action: AppliedOutcome['action']): string {
 }
 
 function applyTarget(config: AppConfig, t: DeploymentTarget, force: boolean): AppliedOutcome {
+	if (t.blockedReason) {
+		return { skill: t.skill, agent: t.agent, action: 'skipped-conflict', reason: t.blockedReason };
+	}
 	if (t.status === 'synced') {
 		return { skill: t.skill, agent: t.agent, action: 'skipped-synced' };
 	}
@@ -190,22 +204,13 @@ function applyTarget(config: AppConfig, t: DeploymentTarget, force: boolean): Ap
 function verifyOutcomes(config: AppConfig, outcomes: readonly AppliedOutcome[]): string[] {
 	const touched = outcomes.filter((o) => o.action === 'created' || o.action === 'replaced');
 	if (touched.length === 0) return [];
-	const invByAgent = new Map<string, ReturnType<typeof scanInventory>>();
-	const getInv = (agent: AgentConfig) => {
-		const existing = invByAgent.get(agent.name);
-		if (existing) return existing;
-		const fresh = scanInventory(agent.dir);
-		invByAgent.set(agent.name, fresh);
-		return fresh;
-	};
 
 	const out: string[] = [];
 	for (const o of touched) {
 		const agent = config.agents.find((a) => a.name === o.agent)!;
-		const inv = getInv(agent);
-		const tgt = inv.skills.find((s) => s.name === o.skill) ?? null;
-		const sourceInv = scanInventory(config.sourceDir);
-		const src = sourceInv.skills.find((s) => s.name === o.skill) ?? null;
+		const path = join(agent.dir, o.skill);
+		const tgt = dirExists(path) ? readSkill(o.skill, path) : null;
+		const src = readSkill(o.skill, join(config.sourceDir, o.skill));
 		const { status } = compareSkills(src, tgt);
 		if (status === 'synced') {
 			out.push(`${o.agent}:${o.skill}  ${green('OK')}`);

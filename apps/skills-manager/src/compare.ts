@@ -1,5 +1,6 @@
 import { ConfigError, requireAgent } from './config.js';
 import { scanInventory } from './inventory.js';
+import { pathMatcher, writeDeniedReason } from './path-rules.js';
 import type {
 	AgentConfig,
 	AppConfig,
@@ -20,7 +21,7 @@ export function takeSnapshot(config: AppConfig): Snapshot {
 	const source = scanInventory(config.sourceDir);
 	const agents = new Map<string, InventoryResult>();
 	for (const agent of config.agents) {
-		agents.set(agent.name, scanInventory(agent.dir));
+		agents.set(agent.name, scanInventory(agent.dir, agent.scanExcludePatterns));
 	}
 	return { source, agents };
 }
@@ -92,11 +93,18 @@ export function selectTargets(
 		const inv = snapshot.agents.get(agent.name);
 		for (const skill of skills) {
 			const tgt = inv?.skills.find((s) => s.name === skill.name) ?? null;
-			const { status, changes } = compareSkills(skill, tgt);
+			const excluded = pathMatcher(agent.scanExcludePatterns);
+			const comparableSource = {
+				...skill,
+				files: skill.files.filter((f) => !excluded.ignores(`${skill.name}/${f.relPath}`)),
+			};
+			const { status, changes } = compareSkills(comparableSource, tgt);
+			const blockedReason = writeDeniedReason(skill.name, agent.writeDenyPatterns);
 			results.push({
 				skill: skill.name,
 				agent: agent.name,
-				status,
+				status: blockedReason ? 'blocked' : status,
+				blockedReason,
 				source: skill,
 				target: tgt,
 				changes,

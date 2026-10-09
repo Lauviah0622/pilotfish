@@ -32,6 +32,11 @@ SKILLS_SOURCE_DIR=~/.skills/skills
 CLAUDE_SKILLS_DIR=~/.claude/skills
 CODEX_SKILLS_DIR=~/.codex/skills
 CURSOR_SKILLS_DIR=~/.cursor/skills
+
+CODEX_SCAN_EXCLUDE_PATTERNS='[".system/"]'
+CODEX_WRITE_DENY_PATTERNS='[".system/"]'
+CLAUDE_SCAN_EXCLUDE_PATTERNS='[".trash/", "synced/"]'
+CLAUDE_WRITE_DENY_PATTERNS='[".trash/", "synced/"]'
 ```
 
 - `SKILLS_SOURCE_DIR` is required.
@@ -40,11 +45,40 @@ CURSOR_SKILLS_DIR=~/.cursor/skills
 
 The CLI never writes to `.env`, never spawns a daemon, and never watches files.
 
+## Agent path rules
+
+Each enabled agent accepts `<NAME>_SCAN_EXCLUDE_PATTERNS` and `<NAME>_WRITE_DENY_PATTERNS`.
+Values are JSON arrays of strings; unset, blank, or `[]` means no rules. Shell environment
+values take precedence over `.env`. Rules for one agent do not affect other agents or SSOT.
+
+Patterns use the existing `ignore` package's gitignore wildcards (`*`, `**`, `?`, character
+classes), anchored to the agent skills root. Use `/` as the separator. For example,
+`.system/` matches that directory and all descendants; `review/cache/` excludes a nested
+directory, and `native-*` matches root entries. Absolute paths, traversal, negation, comments,
+and backslashes are rejected. Quote the JSON with single quotes in `.env` as shown above.
+
+- **Scan exclude** prunes inventory traversal before hashing. Excluded root entries do not
+  appear as skills, unmanaged entries, or missing-`SKILL.md` diagnostics. Nested excluded
+  files are omitted from both sides of the comparison. This does not grant or deny writes.
+- **Write deny** produces a `blocked` target in doctor, diff, and the deployment plan. Apply
+  refuses it, including with `--force` or `--dry-run`; other targets continue. Exit code is 1.
+  Because deployment atomically replaces a whole skill directory, a rule protecting a
+  descendant also blocks its parent skill, even if that descendant does not exist yet.
+  Consequently `*/private/` blocks every skill tree; use more specific rules if needed.
+
+`doctor` lists both sets of effective rules. Inventory exclusions do not hide an existing
+write target from collision checks: apply inspects the selected target directly for planning
+and post-write verification. With scan-only exclusions, apply may therefore report a conflict
+that doctor/diff omit; `--force` is still required to replace different content.
+
+The example rules are explicit local configuration, not automatic detection of built-in
+skills. `.env.example` provides a versioned template; the local `.env` is ignored by Git.
+
 ## Commands
 
 ### `skills doctor`
 
-Read-only overview. Shows SSOT and agent paths, a deployment matrix, unmanaged (agent-only) skills, diagnostics, and a summary count.
+Read-only overview. Shows SSOT and agent paths, a deployment matrix, unmanaged (agent-only) skills, effective path rules, diagnostics, and a summary count.
 
 ### `skills diff [--skill S] [--agent A] [--summary|--stat]`
 
@@ -58,6 +92,7 @@ Deploys selected SSOT skills to agents.
 - `synced` targets are skipped.
 - `different` targets are **refused** without `--force`; with `--force` they are atomically replaced.
 - `unmanaged` agent-only skills are never touched.
+- `blocked` targets are refused regardless of `--force`.
 - Each `skill × agent` target is independent — a conflict on one target does not block another.
 - Deploys are staged into `<target>.staging.<id>`, verified, then renamed into place; failures leave the original target intact.
 - After a successful apply, the target is re-scanned to confirm it is `synced`.
@@ -80,7 +115,7 @@ Unknown skills or disabled agents fail with exit code 2 — never silently ignor
 | Code | Meaning                                                         |
 | ---- | --------------------------------------------------------------- |
 | 0    | success, no drift                                               |
-| 1    | success, found `missing` / `different` targets (or apply conflict) |
+| 1    | success, found `missing` / `different` / `blocked` targets (or apply conflict) |
 | 2    | configuration, argument, I/O error                              |
 
 `unmanaged` skills on their own never trigger exit code 1 — they are informational.

@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { gzipSync } from 'node:zlib';
 import { zipSync } from 'fflate';
 import { pack as tarPack } from 'tar-stream';
-import { createFixture, run, writeDotenv } from './_helpers.mjs';
+import { createFixture, run, runAsync, writeDotenv } from './_helpers.mjs';
 
 /**
  * Build a zip Buffer from a map of entry path → content.
@@ -80,7 +80,7 @@ test('import zip with single top-level dir (GitHub-style) auto-strips', async ()
 	});
 	try {
 		writeDotenv(fx.envFile, { SKILLS_SOURCE_DIR: fx.sourceDir });
-		const r = run(fx.root, ['import', srv.url('/review.zip')]);
+		const r = await runAsync(fx.root, ['import', srv.url('/review.zip')]);
 		assert.equal(r.status, 0, r.stderr || r.stdout);
 		assert.equal(readFileSync(join(fx.sourceDir, 'review', 'SKILL.md'), 'utf8'), '# review\n');
 		assert.equal(readFileSync(join(fx.sourceDir, 'review', 'docs/notes.md'), 'utf8'), 'notes\n');
@@ -100,7 +100,7 @@ test('import tar.gz (npm-style with package/ root) auto-strips', async () => {
 	});
 	try {
 		writeDotenv(fx.envFile, { SKILLS_SOURCE_DIR: fx.sourceDir });
-		const r = run(fx.root, ['import', srv.url('/pkg.tgz'), '--as', 'npm-skill']);
+		const r = await runAsync(fx.root, ['import', srv.url('/pkg.tgz'), '--as', 'npm-skill']);
 		assert.equal(r.status, 0, r.stderr || r.stdout);
 		assert.equal(
 			readFileSync(join(fx.sourceDir, 'npm-skill', 'SKILL.md'), 'utf8'),
@@ -124,7 +124,12 @@ test('import --subdir picks a nested skill out of a multi-skill repo', async () 
 	});
 	try {
 		writeDotenv(fx.envFile, { SKILLS_SOURCE_DIR: fx.sourceDir });
-		const r = run(fx.root, ['import', srv.url('/multi.zip'), '--subdir', 'skills/code-review']);
+		const r = await runAsync(fx.root, [
+			'import',
+			srv.url('/multi.zip'),
+			'--subdir',
+			'skills/code-review',
+		]);
 		assert.equal(r.status, 0, r.stderr || r.stdout);
 		assert.ok(existsSync(join(fx.sourceDir, 'code-review', 'SKILL.md')));
 		assert.ok(existsSync(join(fx.sourceDir, 'code-review', 'helper.md')));
@@ -144,7 +149,7 @@ test('import fails when archive has no SKILL.md', async () => {
 	});
 	try {
 		writeDotenv(fx.envFile, { SKILLS_SOURCE_DIR: fx.sourceDir });
-		const r = run(fx.root, ['import', srv.url('/bad.zip')]);
+		const r = await runAsync(fx.root, ['import', srv.url('/bad.zip')]);
 		assert.equal(r.status, 2);
 		assert.match(r.stdout, /No SKILL.md/);
 	} finally {
@@ -165,7 +170,7 @@ test('import refuses to overwrite an existing SSOT skill without --force', async
 		// Pre-seed the SSOT.
 		const { writeSkill } = await import('./_helpers.mjs');
 		writeSkill(fx.sourceDir, 'review', { 'SKILL.md': 'OLD CONTENT\n' });
-		const r = run(fx.root, ['import', srv.url('/review.zip')]);
+		const r = await runAsync(fx.root, ['import', srv.url('/review.zip')]);
 		assert.equal(r.status, 2);
 		assert.match(r.stdout, /already contains/);
 		// Original content preserved.
@@ -187,7 +192,7 @@ test('import --force replaces an existing SSOT skill', async () => {
 		writeDotenv(fx.envFile, { SKILLS_SOURCE_DIR: fx.sourceDir });
 		const { writeSkill } = await import('./_helpers.mjs');
 		writeSkill(fx.sourceDir, 'review', { 'SKILL.md': 'OLD\n', 'cruft.md': 'junk\n' });
-		const r = run(fx.root, ['import', srv.url('/review.zip'), '--force']);
+		const r = await runAsync(fx.root, ['import', srv.url('/review.zip'), '--force']);
 		assert.equal(r.status, 0, r.stderr || r.stdout);
 		assert.equal(readFileSync(join(fx.sourceDir, 'review', 'SKILL.md'), 'utf8'), '# fresh\n');
 		assert.equal(existsSync(join(fx.sourceDir, 'review', 'cruft.md')), false);
@@ -207,7 +212,7 @@ test('import rejects path traversal entries', async () => {
 	});
 	try {
 		writeDotenv(fx.envFile, { SKILLS_SOURCE_DIR: fx.sourceDir });
-		const r = run(fx.root, ['import', srv.url('/evil.zip'), '--as', 'evil']);
+		const r = await runAsync(fx.root, ['import', srv.url('/evil.zip'), '--as', 'evil']);
 		assert.equal(r.status, 0, r.stderr || r.stdout);
 		// The malicious entry must NOT have been written anywhere outside the skill root.
 		assert.equal(existsSync(join(fx.sourceDir, 'escape.sh')), false);
@@ -254,7 +259,7 @@ test('import then apply: full round-trip into agent dir', async () => {
 			SKILLS_SOURCE_DIR: fx.sourceDir,
 			CLAUDE_SKILLS_DIR: fx.claudeDir,
 		});
-		const r1 = run(fx.root, ['import', srv.url('/review.zip'), '--as', 'rt']);
+		const r1 = await runAsync(fx.root, ['import', srv.url('/review.zip'), '--as', 'rt']);
 		assert.equal(r1.status, 0, r1.stderr || r1.stdout);
 		const r2 = run(fx.root, ['apply']);
 		assert.equal(r2.status, 0, r2.stderr || r2.stdout);

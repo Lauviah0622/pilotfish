@@ -1,6 +1,6 @@
 import { existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, resolve, win32 } from 'node:path';
 import type { AgentConfig, AppConfig } from './types.js';
 
 export class ConfigError extends Error {
@@ -47,6 +47,37 @@ function deriveAgentName(envVar: string): string | null {
 	return m[1]!.toLowerCase();
 }
 
+function readPatterns(key: string): string[] {
+	const raw = process.env[key]?.trim();
+	if (!raw) return [];
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		throw new ConfigError(`${key} must be a JSON array of relative path patterns.`);
+	}
+	if (
+		!Array.isArray(value) ||
+		value.some(
+			(p) =>
+				typeof p !== 'string' ||
+				!p.trim() ||
+				p !== p.trim() ||
+				isAbsolute(p) ||
+				win32.parse(p).root !== '' ||
+				p.startsWith('!') ||
+				p.startsWith('#') ||
+				p.includes('\\') ||
+				['\r', '\n', '\0'].some((character) => p.includes(character)) ||
+				p.split('/').some((part) => part === '..' || part === '.'),
+		)
+	)
+		throw new ConfigError(
+			`${key} must contain nonempty root-relative patterns (no negation, absolute paths, or traversal).`,
+		);
+	return value;
+}
+
 export function loadConfig(cwd: string = process.cwd()): AppConfig {
 	const envFile = findDotenv(cwd);
 	if (envFile) {
@@ -80,6 +111,8 @@ export function loadConfig(cwd: string = process.cwd()): AppConfig {
 			name,
 			envVar: key,
 			dir: resolvePath(raw, baseDir),
+			scanExcludePatterns: readPatterns(`${name.toUpperCase()}_SCAN_EXCLUDE_PATTERNS`),
+			writeDenyPatterns: readPatterns(`${name.toUpperCase()}_WRITE_DENY_PATTERNS`),
 		});
 	}
 
