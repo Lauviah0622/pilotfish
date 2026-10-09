@@ -81,7 +81,7 @@ test('.env paths are resolved relative to the .env file dir', () => {
 	}
 });
 
-test('invalid SKILL.md (missing) marks skill invalid in SSOT and fails diff/apply', () => {
+test('root without any SKILL.md is invalid in SSOT and fails diff/apply', () => {
 	const fx = createFixture();
 	try {
 		writeDotenv(fx.envFile, {
@@ -92,7 +92,7 @@ test('invalid SKILL.md (missing) marks skill invalid in SSOT and fails diff/appl
 		const d = run(fx.root, ['doctor']);
 		// doctor should list diagnostic but still exit 1 due to missing deployment.
 		assert.notEqual(d.status, 2);
-		assert.match(d.stdout, /Missing SKILL.md/);
+		assert.match(d.stdout, /No SKILL.md found/);
 
 		const a = run(fx.root, ['apply']);
 		assert.equal(a.status, 2);

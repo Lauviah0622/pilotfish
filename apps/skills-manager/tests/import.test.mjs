@@ -140,6 +140,35 @@ test('import --subdir picks a nested skill out of a multi-skill repo', async () 
 	}
 });
 
+test('import accepts an archive root containing multiple nested skills', async () => {
+	const fx = createFixture();
+	const srv = await serveFixtures({
+		'/obsidian.zip': makeZip({
+			'repo-main/skills/markdown/SKILL.md': '# markdown\n',
+			'repo-main/skills/canvas/SKILL.md': '# canvas\n',
+			'repo-main/README.md': 'shared\n',
+		}),
+	});
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		const imported = await runAsync(fx.root, ['import', srv.url('/obsidian.zip')]);
+		assert.equal(imported.status, 0, imported.stderr || imported.stdout);
+		const applied = run(fx.root, ['apply', '--root', 'obsidian']);
+		assert.equal(applied.status, 0, applied.stderr || applied.stdout);
+		assert.equal(
+			readFileSync(join(fx.claudeDir, 'obsidian/skills/canvas/SKILL.md'), 'utf8'),
+			'# canvas\n',
+		);
+		assert.equal(readFileSync(join(fx.claudeDir, 'obsidian/README.md'), 'utf8'), 'shared\n');
+	} finally {
+		await srv.close();
+		fx.cleanup();
+	}
+});
+
 test('import fails when archive has no SKILL.md', async () => {
 	const fx = createFixture();
 	const srv = await serveFixtures({

@@ -70,6 +70,31 @@ test('diff --skill limits scope to one skill', () => {
 	}
 });
 
+test('diff --root reports nested file changes within one root', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		writeSkill(fx.sourceDir, 'obsidian', {
+			'skills/markdown/SKILL.md': '# markdown\n',
+			'skills/canvas/SKILL.md': '# canvas\n',
+		});
+		writeSkill(fx.claudeDir, 'obsidian', {
+			'skills/markdown/SKILL.md': '# local\n',
+			'skills/canvas/SKILL.md': '# canvas\n',
+		});
+		const res = run(fx.root, ['diff', '--root', 'obsidian', '--stat']);
+		assert.equal(res.status, 1, res.stderr);
+		assert.match(res.stdout, /claude:obsidian\s+different/);
+		assert.match(res.stdout, /skills\/markdown\/SKILL.md/);
+		assert.doesNotMatch(res.stdout, /skills\/canvas\/SKILL.md/);
+	} finally {
+		fx.cleanup();
+	}
+});
+
 test('diff fails when --skill does not exist in SSOT', () => {
 	const fx = createFixture();
 	try {
@@ -81,6 +106,22 @@ test('diff fails when --skill does not exist in SSOT', () => {
 		const res = run(fx.root, ['diff', '--skill', 'ghost']);
 		assert.equal(res.status, 2);
 		assert.match(res.stderr, /not found in SSOT/);
+	} finally {
+		fx.cleanup();
+	}
+});
+
+test('empty --root value does not select every root', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		writeSkill(fx.sourceDir, 'review', { 'SKILL.md': 'a\n' });
+		const res = run(fx.root, ['diff', '--root=']);
+		assert.equal(res.status, 2);
+		assert.match(res.stderr, /--root requires a value/);
 	} finally {
 		fx.cleanup();
 	}

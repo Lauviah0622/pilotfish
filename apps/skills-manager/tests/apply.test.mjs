@@ -30,6 +30,50 @@ test('apply deploys missing skills and is idempotent', () => {
 	}
 });
 
+test('apply deploys a nested skill root intact and treats it as one target', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		writeSkill(fx.sourceDir, 'obsidian', {
+			'skills/markdown/SKILL.md': '# markdown\n',
+			'skills/canvas/SKILL.md': '# canvas\n',
+			'skills/canvas/references/schema.md': 'schema\n',
+			'README.md': 'shared context\n',
+		});
+
+		const first = run(fx.root, ['apply', '--root', 'obsidian']);
+		assert.equal(first.status, 0, first.stderr);
+		assert.equal((first.stdout.match(/claude:obsidian\s/g) ?? []).length, 3);
+		assert.equal(
+			readFileSync(join(fx.claudeDir, 'obsidian/skills/canvas/references/schema.md'), 'utf8'),
+			'schema\n',
+		);
+		assert.equal(
+			readFileSync(join(fx.claudeDir, 'obsidian/README.md'), 'utf8'),
+			'shared context\n',
+		);
+
+		writeFile(join(fx.claudeDir, 'obsidian/skills/canvas/SKILL.md'), '# local edit\n');
+		const conflict = run(fx.root, ['apply', '--root', 'obsidian']);
+		assert.equal(conflict.status, 1, conflict.stderr);
+		assert.equal(
+			readFileSync(join(fx.claudeDir, 'obsidian/skills/canvas/SKILL.md'), 'utf8'),
+			'# local edit\n',
+		);
+		const forced = run(fx.root, ['apply', '--root', 'obsidian', '--force']);
+		assert.equal(forced.status, 0, forced.stderr);
+		assert.equal(
+			readFileSync(join(fx.claudeDir, 'obsidian/skills/canvas/SKILL.md'), 'utf8'),
+			'# canvas\n',
+		);
+	} finally {
+		fx.cleanup();
+	}
+});
+
 test('apply refuses to overwrite a different target without --force', () => {
 	const fx = createFixture();
 	try {

@@ -39,13 +39,18 @@ export function runDoctor(config: AppConfig): DoctorResult {
 
 	// Source inventory.
 	sections.push('');
-	sections.push(bold('SSOT skills'));
+	sections.push(bold('SSOT skill roots'));
 	if (snapshot.source.skills.length === 0) {
-		sections.push('  (no skills found)');
+		sections.push('  (no skill roots found)');
 	} else {
 		for (const s of snapshot.source.skills) {
 			const marker = s.valid ? ' ' : '!';
-			sections.push(`  ${marker} ${s.name}  ${dim(`${s.files.length} file(s)`)}`);
+			sections.push(
+				`  ${marker} ${s.name}  ${dim(`${s.skillPaths.length} skill(s), ${s.files.length} file(s)`)}`,
+			);
+			for (const skillPath of s.skillPaths) {
+				sections.push(`    ${skillPath === '.' ? s.name : `${s.name}/${skillPath}`}`);
+			}
 			for (const d of s.diagnostics) {
 				sections.push(`    ${dim(`- ${d}`)}`);
 			}
@@ -59,7 +64,7 @@ export function runDoctor(config: AppConfig): DoctorResult {
 		sections.push('  (no targets to render)');
 	} else {
 		const agents = [...config.agents].sort((a, b) => (a.name < b.name ? -1 : 1));
-		const header = ['  skill', ...agents.map((a) => a.name)];
+		const header = ['  skill root', ...agents.map((a) => a.name)];
 		const rows: string[][] = [header];
 		for (const skill of snapshot.source.skills) {
 			const row = [`  ${skill.name}`];
@@ -76,7 +81,7 @@ export function runDoctor(config: AppConfig): DoctorResult {
 	const unmanaged = listUnmanaged(config, snapshot);
 	if (unmanaged.length > 0) {
 		sections.push('');
-		sections.push(bold('Unmanaged (agent-only) skills'));
+		sections.push(bold('Unmanaged (agent-only) skill roots'));
 		for (const u of unmanaged) {
 			sections.push(`  ${u.agent}: ${u.skill}`);
 		}

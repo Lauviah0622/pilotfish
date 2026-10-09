@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createFixture, run, writeDotenv, writeSkill } from './_helpers.mjs';
+import { createFixture, run, writeDotenv, writeFile, writeSkill } from './_helpers.mjs';
+
+test('repository .gitignore and built-in .git rule exclude non-skill roots', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		writeFile(`${fx.sourceDir}/.gitignore`, 'scratch/\n');
+		writeFile(`${fx.sourceDir}/.git/config`, 'repository metadata\n');
+		writeFile(`${fx.sourceDir}/scratch/note.md`, 'temporary\n');
+		writeSkill(fx.sourceDir, 'review', { 'SKILL.md': '# review\n' });
+
+		const result = run(fx.root, ['apply']);
+		assert.equal(result.status, 0, result.stderr || result.stdout);
+		assert.doesNotMatch(result.stdout, /claude:(?:\.git|scratch)/);
+	} finally {
+		fx.cleanup();
+	}
+});
 
 test('per-skill .gitignore excludes files from inventory on both sides', () => {
 	const fx = createFixture();

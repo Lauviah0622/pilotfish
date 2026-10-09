@@ -10,8 +10,8 @@ import {
 	inferSkillName,
 } from '../archive.js';
 import { bold, dim, green, yellow } from '../format.js';
-import { atomicDeploy, dirExists, ensureDir, fileExists } from '../fsutil.js';
-import { isValidSkillName } from '../inventory.js';
+import { atomicDeploy, dirExists, ensureDir } from '../fsutil.js';
+import { isValidSkillName, readSkill } from '../inventory.js';
 import type { AppConfig } from '../types.js';
 
 export interface ImportOptions {
@@ -30,7 +30,7 @@ export async function runImport(config: AppConfig, options: ImportOptions): Prom
 	const format = detectFormat(options.url);
 
 	const sections: string[] = [];
-	sections.push(bold('Importing skill from URL'));
+	sections.push(bold('Importing skill root from URL'));
 	sections.push(`  ${dim('url    ')} ${options.url}`);
 	sections.push(`  ${dim('format ')} ${format}`);
 	if (options.subdir) sections.push(`  ${dim('subdir ')} ${options.subdir}`);
@@ -69,14 +69,8 @@ export async function runImport(config: AppConfig, options: ImportOptions): Prom
 			}
 		}
 
-		if (!fileExists(join(skillRoot, 'SKILL.md'))) {
-			return fail(
-				sections,
-				options.subdir
-					? `No SKILL.md found at --subdir "${options.subdir}"`
-					: 'No SKILL.md found at archive root after auto-strip — try --subdir',
-			);
-		}
+		const importedRoot = readSkill('import', skillRoot);
+		if (!importedRoot.valid) return fail(sections, importedRoot.diagnostics.join('; '));
 
 		const inferred = inferSkillName(options.url, options.subdir, options.as);
 		if (!inferred) {

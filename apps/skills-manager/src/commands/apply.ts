@@ -34,13 +34,13 @@ export function runApply(config: AppConfig, options: ApplyOptions): ApplyResult 
 		return { ...t, target, ...compareSkills(t.source, target) };
 	});
 
-	// Fail if any in-scope SSOT skill is invalid.
+	// Fail if any selected SSOT skill root is invalid.
 	const invalid = snapshot.source.skills
-		.filter((s) => (options.selector.skill ? s.name === options.selector.skill : true))
+		.filter((s) => (options.selector.root ? s.name === options.selector.root : true))
 		.filter((s) => !s.valid);
 	if (invalid.length > 0) {
 		const details = invalid.map((s) => `  ${s.name}: ${s.diagnostics.join('; ')}`).join('\n');
-		throw new Error(`Invalid skill(s) in SSOT:\n${details}`);
+		throw new Error(`Invalid skill root(s) in SSOT:\n${details}`);
 	}
 
 	const sections: string[] = [];

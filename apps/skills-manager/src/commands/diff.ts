@@ -18,13 +18,13 @@ export function runDiff(config: AppConfig, options: DiffOptions): DiffResult {
 	const snapshot = takeSnapshot(config);
 	const targets = selectTargets(config, snapshot, options.selector);
 
-	// Verify all source skills in scope are valid; otherwise fail.
+	// Verify all selected source skill roots are valid; otherwise fail.
 	const invalid = snapshot.source.skills
-		.filter((s) => (options.selector.skill ? s.name === options.selector.skill : true))
+		.filter((s) => (options.selector.root ? s.name === options.selector.root : true))
 		.filter((s) => !s.valid);
 	if (invalid.length > 0) {
 		const details = invalid.map((s) => `  ${s.name}: ${s.diagnostics.join('; ')}`).join('\n');
-		throw new Error(`Invalid skill(s) in SSOT:\n${details}`);
+		throw new Error(`Invalid skill root(s) in SSOT:\n${details}`);
 	}
 
 	const lines: string[] = [];

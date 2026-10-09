@@ -25,6 +25,7 @@ export interface SkillFile {
 export interface SkillInventoryEntry {
 	readonly name: string;
 	readonly root: string;
+	readonly skillPaths: readonly string[];
 	readonly files: readonly SkillFile[];
 	readonly diagnostics: readonly string[];
 	readonly valid: boolean;
@@ -53,7 +54,7 @@ export interface DeploymentTarget {
 }
 
 export interface Selector {
-	readonly skill?: string;
+	readonly root?: string;
 	readonly agent?: string;
 }
 

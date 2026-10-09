@@ -11,12 +11,13 @@ USAGE
 
 COMMANDS
   doctor                     Show SSOT, agents, deployment matrix, and summary
-  diff   [options]           Compare SSOT skills with agent inventories (read-only)
-  apply  [options]           Deploy SSOT skills to agents
-  import <url> [options]     Download a skill archive (zip / tar.gz) into the SSOT
+  diff   [options]           Compare SSOT skill roots with agent inventories (read-only)
+  apply  [options]           Deploy SSOT skill roots to agents
+  import <url> [options]     Download a skill root archive (zip / tar.gz) into the SSOT
 
 COMMON OPTIONS
-  --skill <name>             Limit to one skill  (diff / apply)
+  --root <name>              Limit to one skill root  (diff / apply)
+  --skill <name>             Alias for --root
   --agent <name>             Limit to one agent  (diff / apply)
 
 DIFF OPTIONS
@@ -29,8 +30,8 @@ APPLY OPTIONS
 
 IMPORT OPTIONS
   --subdir <path>            Treat this subpath of the archive as the skill root
-  --as <name>                Override the inferred skill name
-  --force                    Replace an existing SSOT skill with the same name
+  --as <name>                Override the inferred skill root name
+  --force                    Replace an existing SSOT skill root with the same name
 
 EXIT CODES
   0  success, no drift
@@ -39,7 +40,9 @@ EXIT CODES
 
 CONFIG (.env)
   SKILLS_SOURCE_DIR          Canonical SSOT directory (required)
-  <NAME>_SKILLS_DIR          Enable agent \`<name>\` (lowercased)
+  CLAUDE_SKILLS_DIR          Enable Claude Code
+  CODEX_SKILLS_DIR           Enable Codex
+  CURSOR_SKILLS_DIR          Enable Cursor
 
 The CLI looks for \`.env\` in the current working directory, then
 \`~/.config/skills-manager/.env\`. If neither exists it uses process.env.
@@ -48,7 +51,7 @@ The CLI looks for \`.env\` in the current working directory, then
 interface ParsedArgs {
 	readonly command: string;
 	readonly positional: readonly string[];
-	readonly skill?: string;
+	readonly root?: string;
 	readonly agent?: string;
 	readonly subdir?: string;
 	readonly as?: string;
@@ -60,7 +63,7 @@ interface ParsedArgs {
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
-	let skill: string | undefined;
+	let root: string | undefined;
 	let agent: string | undefined;
 	let subdir: string | undefined;
 	let as: string | undefined;
@@ -93,10 +96,11 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 			stat = true;
 			continue;
 		}
-		if (a === '--skill' || a.startsWith('--skill=')) {
-			const v = readValue('--skill', a, argv, i);
-			if (skill !== undefined) throw new UsageError('--skill may only be given once');
-			skill = v.value;
+		if (a === '--root' || a.startsWith('--root=') || a === '--skill' || a.startsWith('--skill=')) {
+			const flag = a.startsWith('--root') ? '--root' : '--skill';
+			const v = readValue(flag, a, argv, i);
+			if (root !== undefined) throw new UsageError('--root/--skill may only be given once');
+			root = v.value;
 			if (v.consumed) i++;
 			continue;
 		}
@@ -139,7 +143,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 	return {
 		command,
 		positional: positional.slice(1),
-		skill,
+		root,
 		agent,
 		subdir,
 		as,
@@ -158,7 +162,9 @@ function readValue(
 	i: number,
 ): { value: string; consumed: boolean } {
 	if (a.startsWith(`${name}=`)) {
-		return { value: a.slice(name.length + 1), consumed: false };
+		const value = a.slice(name.length + 1);
+		if (!value) throw new UsageError(`${name} requires a value`);
+		return { value, consumed: false };
 	}
 	const next = argv[i + 1];
 	if (!next || next.startsWith('-')) {
@@ -197,8 +203,8 @@ export async function main(argv: readonly string[]): Promise<number> {
 		switch (command) {
 			case 'doctor': {
 				rejectExtraPositional(command, parsed.positional);
-				if (parsed.skill || parsed.agent) {
-					throw new UsageError('doctor does not accept --skill or --agent');
+				if (parsed.root || parsed.agent) {
+					throw new UsageError('doctor does not accept --root or --agent');
 				}
 				rejectImportFlags(command, parsed);
 				if (parsed.dryRun || parsed.force || parsed.summary || parsed.stat) {
@@ -216,7 +222,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 				}
 				const mode = parsed.summary ? 'summary' : parsed.stat ? 'stat' : 'full';
 				const result = runDiff(config, {
-					selector: { skill: parsed.skill, agent: parsed.agent },
+					selector: { root: parsed.root, agent: parsed.agent },
 					mode,
 				});
 				process.stdout.write(result.output + (result.output ? '\n' : ''));
@@ -229,7 +235,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 					throw new UsageError('apply does not accept --summary or --stat');
 				}
 				const result = runApply(config, {
-					selector: { skill: parsed.skill, agent: parsed.agent },
+					selector: { root: parsed.root, agent: parsed.agent },
 					dryRun: parsed.dryRun,
 					force: parsed.force,
 				});
@@ -245,8 +251,8 @@ export async function main(argv: readonly string[]): Promise<number> {
 						`import takes exactly one URL; extra args: ${parsed.positional.slice(1).join(' ')}`,
 					);
 				}
-				if (parsed.skill || parsed.agent) {
-					throw new UsageError('import does not accept --skill or --agent');
+				if (parsed.root || parsed.agent) {
+					throw new UsageError('import does not accept --root or --agent');
 				}
 				if (parsed.dryRun || parsed.summary || parsed.stat) {
 					throw new UsageError('import does not accept --dry-run / --summary / --stat');

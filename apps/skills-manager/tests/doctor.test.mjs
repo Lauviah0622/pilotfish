@@ -33,7 +33,7 @@ test('doctor reports synced, missing, different, unmanaged', () => {
 
 		const res = run(fx.root, ['doctor']);
 		assert.equal(res.status, 1, res.stderr);
-		assert.match(res.stdout, /SSOT skills/);
+		assert.match(res.stdout, /SSOT skill roots/);
 		assert.match(res.stdout, /code-review/);
 		assert.match(res.stdout, /debugging/);
 		assert.match(res.stdout, /Deployment matrix/);
@@ -60,6 +60,29 @@ test('doctor exits 0 when everything is synced; unmanaged alone does not fail it
 		const res = run(fx.root, ['doctor']);
 		assert.equal(res.status, 0, res.stderr);
 		assert.match(res.stdout, /local-only/);
+	} finally {
+		fx.cleanup();
+	}
+});
+
+test('doctor lists nested skills beneath their deployment root', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		writeSkill(fx.sourceDir, 'obsidian', {
+			'skills/markdown/SKILL.md': '# markdown\n',
+			'skills/canvas/SKILL.md': '# canvas\n',
+		});
+		const res = run(fx.root, ['doctor']);
+		assert.equal(res.status, 1, res.stderr);
+		assert.match(res.stdout, /obsidian\s+2 skill\(s\)/);
+		assert.match(res.stdout, /obsidian\/skills\/markdown/);
+		assert.match(res.stdout, /obsidian\/skills\/canvas/);
+		assert.match(res.stdout, /obsidian\s+.*missing/);
+		assert.doesNotMatch(res.stdout, /No SKILL.md found/);
 	} finally {
 		fx.cleanup();
 	}

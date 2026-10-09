@@ -1,12 +1,34 @@
 # @pilotfish/skills-manager
 
-`skills` — a local-only, agent-agnostic CLI that treats one directory as the single source of truth (SSOT) for your global agent skills and deploys that directory into Claude Code, Codex, Cursor, or any other agent's global skills folder.
+`skills` — a local-only CLI that treats one directory as the single source of truth (SSOT) for your global agent skill roots and deploys each root into an agent's global skills folder.
 
 The mental model, in three lines:
 
 1. The SSOT is the only place you edit skills.
 2. Agent directories are deployment output, never input.
 3. `doctor` and `diff` observe the actual filesystem state; `apply` makes it match the SSOT.
+
+Each direct child of the SSOT is a **skill root**. A root can contain one skill at its top level or several skills deeper in its tree. A directory containing `SKILL.md` is a skill; the complete root is the unit that `diff` compares and `apply` copies.
+
+```text
+<SSOT>/
+├── review/SKILL.md
+└── obsidian/
+    ├── README.md
+    └── skills/
+        ├── markdown/SKILL.md
+        └── canvas/SKILL.md
+
+<CODEX_SKILLS_DIR>/
+├── review/SKILL.md
+└── obsidian/
+    ├── README.md
+    └── skills/
+        ├── markdown/SKILL.md
+        └── canvas/SKILL.md
+```
+
+The manager preserves each root's paths. Its filesystem checks do not establish whether a particular agent discovers nested skills at runtime.
 
 ## Install
 
@@ -69,13 +91,13 @@ directory, and `native-*` matches root entries. Absolute paths, traversal, negat
 and backslashes are rejected. Quote the JSON with single quotes in `.env` as shown above.
 
 - **Scan exclude** prunes inventory traversal before hashing. Excluded root entries do not
-  appear as skills, unmanaged entries, or missing-`SKILL.md` diagnostics. Nested excluded
+  appear as skill roots, unmanaged entries, or missing-`SKILL.md` diagnostics. Nested excluded
   files are omitted from both sides of the comparison. This does not grant or deny writes.
 - **Write deny** produces a `blocked` target in doctor, diff, and the deployment plan. Apply
   refuses it, including with `--force` or `--dry-run`; other targets continue. Exit code is 1.
-  Because deployment atomically replaces a whole skill directory, a rule protecting a
-  descendant also blocks its parent skill, even if that descendant does not exist yet.
-  Consequently `*/private/` blocks every skill tree; use more specific rules if needed.
+  Because deployment atomically replaces a whole skill root, a rule protecting a
+  descendant also blocks its parent root, even if that descendant does not exist yet.
+  Consequently `*/private/` blocks every skill root; use more specific rules if needed.
 
 `doctor` lists both sets of effective rules. Inventory exclusions do not hide an existing
 write target from collision checks: apply inspects the selected target directly for planning
@@ -91,35 +113,39 @@ skills. `.env.example` provides a versioned template; the local `.env` is ignore
 
 Read-only overview. Shows SSOT and agent paths, a deployment matrix, unmanaged (agent-only) skills, effective path rules, diagnostics, and a summary count.
 
-### `skills diff [--skill S] [--agent A] [--summary|--stat]`
+### `skills diff [--root R] [--agent A] [--summary|--stat]`
 
 Per-target comparison. Default output is unified textual diff; `--summary` compresses to one line per target, `--stat` lists per-file changes without the textual diff.
 
-### `skills apply [--skill S] [--agent A] [--dry-run] [--force]`
+### `skills apply [--root R] [--agent A] [--dry-run] [--force]`
 
-Deploys selected SSOT skills to agents.
+Deploys selected SSOT skill roots to agents, preserving all paths below each root.
 
 - `missing` targets are created.
 - `synced` targets are skipped.
 - `different` targets are **refused** without `--force`; with `--force` they are atomically replaced.
-- `unmanaged` agent-only skills are never touched.
+- `unmanaged` agent-only roots are never touched.
 - `blocked` targets are refused regardless of `--force`.
-- Each `skill × agent` target is independent — a conflict on one target does not block another.
+- Each `skill root × agent` target is independent — a conflict on one target does not block another.
 - Deploys are staged into `<target>.staging.<id>`, verified, then renamed into place; failures leave the original target intact.
 - After a successful apply, the target is re-scanned to confirm it is `synced`.
 
+### `skills import <archive-url> [--subdir P] [--as R] [--force]`
+
+Imports a zip or tar.gz archive into one SSOT skill root. The chosen archive directory must contain at least one `SKILL.md` anywhere in its tree. `--subdir` selects a smaller root within the archive; `--as` names the SSOT root. Import does not deploy it to agents until `skills apply` runs.
+
 ## Selectors
 
-`--skill` and `--agent` behave the same way across `diff` and `apply`:
+`--root` and `--agent` behave the same way across `diff` and `apply`. `--skill` remains an alias for `--root` for existing commands; it selects a root, not one nested skill.
 
 | Selectors            | Scope                                   |
 | -------------------- | --------------------------------------- |
-| (none)               | all SSOT skills × all enabled agents    |
-| `--skill S`          | skill S × all enabled agents            |
-| `--agent A`          | all SSOT skills × agent A               |
-| `--skill S --agent A`| exactly one target                      |
+| (none)               | all SSOT roots × all enabled agents     |
+| `--root R`           | root R × all enabled agents             |
+| `--agent A`          | all SSOT roots × agent A                |
+| `--root R --agent A` | exactly one target                      |
 
-Unknown skills or disabled agents fail with exit code 2 — never silently ignored.
+Unknown roots or disabled agents fail with exit code 2 — never silently ignored.
 
 ## Exit codes
 
@@ -129,16 +155,16 @@ Unknown skills or disabled agents fail with exit code 2 — never silently ignor
 | 1    | success, found `missing` / `different` / `blocked` targets (or apply conflict) |
 | 2    | configuration, argument, I/O error                              |
 
-`unmanaged` skills on their own never trigger exit code 1 — they are informational.
+`unmanaged` roots on their own never trigger exit code 1 — they are informational.
 
 ## Skill validity
 
-A skill is a direct subdirectory of a root (SSOT or agent) that:
+A skill root is a direct subdirectory of the SSOT or agent directory that:
 
 - has a safe directory name (no path traversal), and
-- contains a readable `SKILL.md`.
+- contains at least one readable `SKILL.md` at any depth.
 
-Invalid source skills cause `diff` and `apply` to fail; `doctor` lists them in diagnostics and keeps scanning.
+Each directory containing `SKILL.md` is listed as a skill within its root. Invalid source roots cause `diff` and `apply` to fail; `doctor` lists them in diagnostics and keeps scanning.
 
 ## Ignore rules
 
@@ -146,7 +172,7 @@ The following paths are always ignored when computing inventory and status:
 
 - `.git/`, `.DS_Store`, `Thumbs.db`
 
-Each skill directory may contain a `.gitignore`; the matcher supports `#` comments, blank lines, trailing `/` (directory-only), leading `/` (anchored), `*`/`**`/`?` globs, and `!` negation.
+The SSOT and agent directory may each contain a `.gitignore` to exclude direct child roots. Each skill root may also contain a `.gitignore` for its own files. The matcher supports `#` comments, blank lines, trailing `/` (directory-only), leading `/` (anchored), `*`/`**`/`?` globs, and `!` negation. `.git/`, `.DS_Store`, and `Thumbs.db` are always ignored when scanning.
 
 ## Non-goals (MVP)
 

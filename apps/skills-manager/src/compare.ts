@@ -66,11 +66,11 @@ export function compareSkills(
 /**
  * Compute deployment targets for a selector.
  *
- * - Without --skill: iterate every SSOT skill.
+ * - Without --root: iterate every SSOT skill root.
  * - Without --agent: iterate every enabled agent.
  *
- * `unmanaged` agent-only skills are NOT returned here; `diff` and `apply`
- * work only on SSOT skills. The `doctor` command surfaces them separately.
+ * `unmanaged` agent-only roots are NOT returned here; `diff` and `apply`
+ * work only on SSOT roots. The `doctor` command surfaces them separately.
  */
 export function selectTargets(
 	config: AppConfig,
@@ -80,8 +80,8 @@ export function selectTargets(
 	validateSelector(config, snapshot, selector);
 
 	const sourceSkills = snapshot.source.skills;
-	const skills = selector.skill
-		? sourceSkills.filter((s) => s.name === selector.skill)
+	const skills = selector.root
+		? sourceSkills.filter((s) => s.name === selector.root)
 		: sourceSkills;
 
 	const agents: AgentConfig[] = selector.agent
@@ -115,10 +115,12 @@ export function selectTargets(
 }
 
 function validateSelector(config: AppConfig, snapshot: Snapshot, selector: Selector): void {
-	if (selector.skill) {
-		const found = snapshot.source.skills.some((s) => s.name === selector.skill);
+	if (selector.root) {
+		const found = snapshot.source.skills.some((s) => s.name === selector.root);
 		if (!found) {
-			throw new ConfigError(`Skill "${selector.skill}" not found in SSOT (${config.sourceDir}).`);
+			throw new ConfigError(
+				`Skill root "${selector.root}" not found in SSOT (${config.sourceDir}).`,
+			);
 		}
 	}
 	if (selector.agent) {

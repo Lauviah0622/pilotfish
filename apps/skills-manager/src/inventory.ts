@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import ignore, { type Ignore } from 'ignore';
-import { dirExists, fileExists, hashFile, listFiles } from './fsutil.js';
+import { dirExists, hashFile, listFiles } from './fsutil.js';
 import { pathMatcher } from './path-rules.js';
 import type { InventoryResult, SkillFile, SkillInventoryEntry } from './types.js';
 
@@ -24,8 +24,8 @@ function makeIgnorer(skillRoot: string): Ignore {
 }
 
 /**
- * Scan a root directory and return the skills it contains. Each direct
- * subdirectory is treated as a skill candidate.
+ * Scan a directory and return its skill roots. Each direct subdirectory is
+ * one deployment unit; SKILL.md may appear anywhere inside that unit.
  */
 export function scanInventory(
 	root: string,
@@ -52,6 +52,7 @@ export function scanInventory(
 	}
 
 	const excluded = pathMatcher(excludePatterns);
+	const ignored = makeIgnorer(root);
 	const diagnostics: string[] = [];
 	const skills: SkillInventoryEntry[] = [];
 
@@ -59,9 +60,9 @@ export function scanInventory(
 		if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
 		const name = String(entry.name);
 		const skillPath = join(root, name);
-		if (excluded.ignores(`${name}/`)) continue;
+		if (ignored.ignores(`${name}/`) || excluded.ignores(`${name}/`)) continue;
 		if (!isValidSkillName(name)) {
-			diagnostics.push(`Skipped invalid skill directory name: ${name}`);
+			diagnostics.push(`Skipped invalid skill root directory name: ${name}`);
 			continue;
 		}
 		skills.push(readSkill(name, skillPath, excluded));
@@ -76,16 +77,19 @@ export function readSkill(
 	excluded: Ignore = pathMatcher([]),
 ): SkillInventoryEntry {
 	const diagnostics: string[] = [];
-	const skillMd = join(root, 'SKILL.md');
 	let valid = true;
-	if (!fileExists(skillMd)) {
-		diagnostics.push(`Missing SKILL.md in ${root}`);
-		valid = false;
-	}
 	let files: SkillFile[] = [];
+	let skillPaths: string[] = [];
 	try {
 		const ig = makeIgnorer(root);
 		const walked = listFiles(root, ig, (path) => excluded.ignores(`${name}/${path}`));
+		skillPaths = walked
+			.filter((w) => w.rel === 'SKILL.md' || w.rel.endsWith('/SKILL.md'))
+			.map((w) => (w.rel === 'SKILL.md' ? '.' : w.rel.slice(0, -'/SKILL.md'.length)));
+		if (skillPaths.length === 0) {
+			diagnostics.push(`No SKILL.md found in ${root}`);
+			valid = false;
+		}
 		files = walked.map((w) => ({
 			relPath: w.rel,
 			size: w.size,
@@ -95,5 +99,5 @@ export function readSkill(
 		diagnostics.push(`Failed to read ${root}: ${(err as Error).message}`);
 		valid = false;
 	}
-	return { name, root, files, diagnostics, valid };
+	return { name, root, skillPaths, files, diagnostics, valid };
 }
