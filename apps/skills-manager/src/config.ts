@@ -1,0 +1,100 @@
+import { existsSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, isAbsolute, resolve } from 'node:path';
+import type { AgentConfig, AppConfig } from './types.js';
+
+export class ConfigError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'ConfigError';
+	}
+}
+
+export function expandHome(p: string): string {
+	if (p === '~') return homedir();
+	if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
+	return p;
+}
+
+/**
+ * Resolve a value possibly containing ~ against a base directory (the .env dir).
+ * If the path is absolute (after ~ expansion), it is returned as-is.
+ */
+export function resolvePath(value: string, baseDir: string): string {
+	const expanded = expandHome(value);
+	if (isAbsolute(expanded)) return expanded;
+	return resolve(baseDir, expanded);
+}
+
+/**
+ * Locate a .env file. Spec forbids --env-file; we look in CWD, then
+ * ~/.config/skills-manager/.env. If neither exists, we return null and
+ * fall back to process.env with cwd as the base for relative paths.
+ */
+export function findDotenv(cwd: string = process.cwd()): string | null {
+	const candidates = [resolve(cwd, '.env'), resolve(homedir(), '.config/skills-manager/.env')];
+	for (const c of candidates) {
+		if (existsSync(c) && statSync(c).isFile()) return c;
+	}
+	return null;
+}
+
+const AGENT_ENV_RE = /^([A-Z][A-Z0-9]*)_SKILLS_DIR$/;
+
+function deriveAgentName(envVar: string): string | null {
+	const m = AGENT_ENV_RE.exec(envVar);
+	if (!m) return null;
+	return m[1]!.toLowerCase();
+}
+
+export function loadConfig(cwd: string = process.cwd()): AppConfig {
+	const envFile = findDotenv(cwd);
+	if (envFile) {
+		try {
+			// Node 20.12+ / 21.7+. Does not override already-set process.env keys,
+			// which matches shell-wins-over-dotfile convention.
+			process.loadEnvFile(envFile);
+		} catch (err) {
+			throw new ConfigError(`Failed to read ${envFile}: ${(err as Error).message}`);
+		}
+	}
+	const baseDir = envFile ? dirname(envFile) : cwd;
+
+	const sourceRaw = process.env.SKILLS_SOURCE_DIR;
+	if (!sourceRaw || sourceRaw.trim() === '') {
+		throw new ConfigError(
+			'SKILLS_SOURCE_DIR is required. Set it in your .env file or environment.',
+		);
+	}
+
+	const sourceDir = resolvePath(sourceRaw.trim(), baseDir);
+
+	const agents: AgentConfig[] = [];
+	for (const key of Object.keys(process.env).sort()) {
+		if (key === 'SKILLS_SOURCE_DIR') continue;
+		const name = deriveAgentName(key);
+		if (!name) continue;
+		const raw = (process.env[key] ?? '').trim();
+		if (raw === '') continue;
+		agents.push({
+			name,
+			envVar: key,
+			dir: resolvePath(raw, baseDir),
+		});
+	}
+
+	return {
+		envFile,
+		sourceDir,
+		agents,
+	};
+}
+
+export function requireAgent(config: AppConfig, name: string): AgentConfig {
+	const agent = config.agents.find((a) => a.name === name);
+	if (!agent) {
+		const available = config.agents.map((a) => a.name).join(', ') || '(none)';
+		throw new ConfigError(`Agent "${name}" is not enabled. Enabled agents: ${available}.`);
+	}
+	return agent;
+}

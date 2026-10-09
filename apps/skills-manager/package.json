@@ -1,0 +1,46 @@
+{
+	"name": "@pilotfish/skills-manager",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Local-only global skills manager — single source of truth deployed to Claude Code, Codex, Cursor and other agent skills directories.",
+	"type": "module",
+	"bin": {
+		"skills": "./dist/skills.js"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "pnpm run check-types && pnpm run lint && node esbuild.cjs",
+		"build:run": "./dist/skills.js",
+		"watch": "node esbuild.cjs --watch",
+		"check-types": "tsc --noEmit",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"test": "pnpm run build && node --test tests/*.test.mjs",
+		"test:only": "node --test tests/*.test.mjs"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@biomejs/biome",
+			"esbuild"
+		]
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/node": "22.x",
+		"esbuild": "^0.27.3",
+		"typescript": "^5.9.3"
+	},
+	"dependencies": {
+		"diff": "^9.0.0",
+		"fdir": "^6.5.0",
+		"ignore": "^7.0.12",
+		"picocolors": "^1.1.1"
+	}
+}
