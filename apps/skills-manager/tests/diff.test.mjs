@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createFixture, run, writeDotenv, writeSkill } from './_helpers.mjs';
 
-test('diff shows per-file changes between SSOT and agent', () => {
+test('diff defaults to root status and file counts, and --verbose shows per-file changes', () => {
 	const fx = createFixture();
 	try {
 		writeDotenv(fx.envFile, {
@@ -17,7 +17,15 @@ test('diff shows per-file changes between SSOT and agent', () => {
 			'SKILL.md': 'alpha\nGAMMA\n',
 			'legacy.md': 'leftover\n',
 		});
-		const res = run(fx.root, ['diff']);
+		const concise = run(fx.root, ['diff']);
+		assert.equal(concise.status, 1, concise.stderr);
+		assert.match(concise.stdout, /claude:review\s+different/);
+		assert.match(concise.stdout, /1 added, 1 removed, 1 modified/);
+		assert.equal(concise.stdout.trim().split('\n').length, 1);
+		assert.doesNotMatch(concise.stdout, /SKILL\.md|extra\.md|legacy\.md/);
+		assert.equal(concise.stdout, run(fx.root, ['diff', '--summary']).stdout);
+
+		const res = run(fx.root, ['diff', '--verbose']);
 		assert.equal(res.status, 1, res.stderr);
 		assert.match(res.stdout, /claude:review/);
 		assert.match(res.stdout, /different/);
@@ -26,6 +34,26 @@ test('diff shows per-file changes between SSOT and agent', () => {
 		assert.match(res.stdout, /removed\s+legacy.md/);
 		assert.match(res.stdout, /\+beta/);
 		assert.match(res.stdout, /-GAMMA/);
+	} finally {
+		fx.cleanup();
+	}
+});
+
+test('diff output detail options cannot be combined', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+		});
+		for (const flags of [
+			['--summary', '--verbose'],
+			['--stat', '--verbose'],
+		]) {
+			const res = run(fx.root, ['diff', ...flags]);
+			assert.equal(res.status, 2);
+			assert.match(res.stderr, /mutually exclusive/);
+		}
 	} finally {
 		fx.cleanup();
 	}

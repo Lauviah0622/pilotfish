@@ -113,9 +113,9 @@ skills. `.env.example` provides a versioned template; the local `.env` is ignore
 
 Read-only overview. Shows SSOT and agent paths, a deployment matrix, unmanaged (agent-only) skills, effective path rules, diagnostics, and a summary count.
 
-### `skills diff [--root R] [--agent A] [--summary|--stat]`
+### `skills diff [--root R] [--agent A] [--summary|--stat|--verbose]`
 
-Per-target comparison. Default output is unified textual diff; `--summary` compresses to one line per target, `--stat` lists per-file changes without the textual diff.
+Per-target comparison. Default output shows each root, its status, and file change counts on one line. `--summary` keeps this output for compatibility, `--stat` lists changed files, and `--verbose` shows the full textual diff. These output options cannot be combined.
 
 ### `skills apply [--root R] [--agent A] [--dry-run] [--force]`
 

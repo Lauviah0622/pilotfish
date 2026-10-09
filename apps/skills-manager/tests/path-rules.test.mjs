@@ -32,7 +32,7 @@ test('scan excludes containers, diagnostics, and nested files, rooted per agent'
 		assert.match(doctor.stdout, /Path rules/);
 		assert.doesNotMatch(doctor.stdout, /claude: (?:\.trash|synced)|Missing SKILL.md/);
 		assert.match(doctor.stdout, /codex: synced/);
-		const diff = run(fx.root, ['diff', '--agent', 'claude']);
+		const diff = run(fx.root, ['diff', '--agent', 'claude', '--stat']);
 		assert.doesNotMatch(diff.stdout, /cache\/file/);
 		assert.match(diff.stdout, /\.trash\/keep/);
 	} finally {

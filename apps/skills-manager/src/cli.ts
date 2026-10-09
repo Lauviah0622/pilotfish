@@ -21,8 +21,10 @@ COMMON OPTIONS
   --agent <name>             Limit to one agent  (diff / apply)
 
 DIFF OPTIONS
-  --summary                  One line per target
+  (default)                  One line per root with status and file change counts
+  --summary                  Same as the default output
   --stat                     Per-file add/remove/modify list (no textual diff)
+  --verbose                  Show the full textual diff
 
 APPLY OPTIONS
   --dry-run                  Show plan without touching the filesystem
@@ -59,6 +61,7 @@ interface ParsedArgs {
 	readonly force: boolean;
 	readonly summary: boolean;
 	readonly stat: boolean;
+	readonly verbose: boolean;
 	readonly help: boolean;
 }
 
@@ -71,6 +74,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 	let force = false;
 	let summary = false;
 	let stat = false;
+	let verbose = false;
 	let help = false;
 
 	const positional: string[] = [];
@@ -94,6 +98,10 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 		}
 		if (a === '--stat') {
 			stat = true;
+			continue;
+		}
+		if (a === '--verbose') {
+			verbose = true;
 			continue;
 		}
 		if (a === '--root' || a.startsWith('--root=') || a === '--skill' || a.startsWith('--skill=')) {
@@ -135,8 +143,8 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 		help = true;
 	}
 
-	if (summary && stat) {
-		throw new UsageError('--summary and --stat are mutually exclusive');
+	if (Number(summary) + Number(stat) + Number(verbose) > 1) {
+		throw new UsageError('--summary, --stat, and --verbose are mutually exclusive');
 	}
 
 	const command = positional[0] ?? '';
@@ -151,6 +159,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 		force,
 		summary,
 		stat,
+		verbose,
 		help,
 	};
 }
@@ -207,7 +216,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 					throw new UsageError('doctor does not accept --root or --agent');
 				}
 				rejectImportFlags(command, parsed);
-				if (parsed.dryRun || parsed.force || parsed.summary || parsed.stat) {
+				if (parsed.dryRun || parsed.force || parsed.summary || parsed.stat || parsed.verbose) {
 					throw new UsageError('doctor does not accept apply/diff flags');
 				}
 				const result = runDoctor(config);
@@ -220,7 +229,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 				if (parsed.dryRun || parsed.force) {
 					throw new UsageError('diff does not accept --dry-run or --force');
 				}
-				const mode = parsed.summary ? 'summary' : parsed.stat ? 'stat' : 'full';
+				const mode = parsed.verbose ? 'full' : parsed.stat ? 'stat' : 'summary';
 				const result = runDiff(config, {
 					selector: { root: parsed.root, agent: parsed.agent },
 					mode,
@@ -231,8 +240,8 @@ export async function main(argv: readonly string[]): Promise<number> {
 			case 'apply': {
 				rejectExtraPositional(command, parsed.positional);
 				rejectImportFlags(command, parsed);
-				if (parsed.summary || parsed.stat) {
-					throw new UsageError('apply does not accept --summary or --stat');
+				if (parsed.summary || parsed.stat || parsed.verbose) {
+					throw new UsageError('apply does not accept --summary, --stat, or --verbose');
 				}
 				const result = runApply(config, {
 					selector: { root: parsed.root, agent: parsed.agent },
@@ -254,8 +263,8 @@ export async function main(argv: readonly string[]): Promise<number> {
 				if (parsed.root || parsed.agent) {
 					throw new UsageError('import does not accept --root or --agent');
 				}
-				if (parsed.dryRun || parsed.summary || parsed.stat) {
-					throw new UsageError('import does not accept --dry-run / --summary / --stat');
+				if (parsed.dryRun || parsed.summary || parsed.stat || parsed.verbose) {
+					throw new UsageError('import does not accept --dry-run / --summary / --stat / --verbose');
 				}
 				const result = await runImport(config, {
 					url: parsed.positional[0]!,
