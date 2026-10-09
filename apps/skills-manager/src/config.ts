@@ -1,6 +1,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, resolve, win32 } from 'node:path';
+import { AGENT_DEFINITIONS } from './agents.js';
 import type { AgentConfig, AppConfig } from './types.js';
 
 export class ConfigError extends Error {
@@ -37,14 +38,6 @@ export function findDotenv(cwd: string = process.cwd()): string | null {
 		if (existsSync(c) && statSync(c).isFile()) return c;
 	}
 	return null;
-}
-
-const AGENT_ENV_RE = /^([A-Z][A-Z0-9]*)_SKILLS_DIR$/;
-
-function deriveAgentName(envVar: string): string | null {
-	const m = AGENT_ENV_RE.exec(envVar);
-	if (!m) return null;
-	return m[1]!.toLowerCase();
 }
 
 function readPatterns(key: string): string[] {
@@ -101,18 +94,18 @@ export function loadConfig(cwd: string = process.cwd()): AppConfig {
 	const sourceDir = resolvePath(sourceRaw.trim(), baseDir);
 
 	const agents: AgentConfig[] = [];
-	for (const key of Object.keys(process.env).sort()) {
-		if (key === 'SKILLS_SOURCE_DIR') continue;
-		const name = deriveAgentName(key);
-		if (!name) continue;
-		const raw = (process.env[key] ?? '').trim();
+	for (const definition of [...AGENT_DEFINITIONS].sort((a, b) =>
+		a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+	)) {
+		const { id, env } = definition;
+		const raw = (process.env[env.skillsDir] ?? '').trim();
 		if (raw === '') continue;
 		agents.push({
-			name,
-			envVar: key,
+			name: id,
+			envVar: env.skillsDir,
 			dir: resolvePath(raw, baseDir),
-			scanExcludePatterns: readPatterns(`${name.toUpperCase()}_SCAN_EXCLUDE_PATTERNS`),
-			writeDenyPatterns: readPatterns(`${name.toUpperCase()}_WRITE_DENY_PATTERNS`),
+			scanExcludePatterns: readPatterns(env.scanExcludePatterns),
+			writeDenyPatterns: readPatterns(env.writeDenyPatterns),
 		});
 	}
 

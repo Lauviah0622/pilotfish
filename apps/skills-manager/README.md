@@ -40,14 +40,25 @@ CLAUDE_WRITE_DENY_PATTERNS='[".trash/", "synced/"]'
 ```
 
 - `SKILLS_SOURCE_DIR` is required.
-- Any `<NAME>_SKILLS_DIR` registers an agent called `<name>` (lowercased).
+- Supported agents and their environment keys are defined in `src/agents.ts`:
+
+| Agent | Skills directory | Scan exclusions | Write denials |
+| --- | --- | --- | --- |
+| `claude` | `CLAUDE_SKILLS_DIR` | `CLAUDE_SCAN_EXCLUDE_PATTERNS` | `CLAUDE_WRITE_DENY_PATTERNS` |
+| `codex` | `CODEX_SKILLS_DIR` | `CODEX_SCAN_EXCLUDE_PATTERNS` | `CODEX_WRITE_DENY_PATTERNS` |
+| `cursor` | `CURSOR_SKILLS_DIR` | `CURSOR_SCAN_EXCLUDE_PATTERNS` | `CURSOR_WRITE_DENY_PATTERNS` |
+
+- A registered agent is enabled only when its skills directory variable is nonempty.
+- Unknown variables such as `CUSTOM_SKILLS_DIR` are ignored; they no longer register agents.
+- To add an agent, add an `AgentDefinition` entry in `src/agents.ts` with a unique ID and
+  explicit environment keys, then rebuild. Commands share the resulting configuration.
 - `~` is expanded. Relative paths resolve against the `.env` file's directory.
 
 The CLI never writes to `.env`, never spawns a daemon, and never watches files.
 
 ## Agent path rules
 
-Each enabled agent accepts `<NAME>_SCAN_EXCLUDE_PATTERNS` and `<NAME>_WRITE_DENY_PATTERNS`.
+Each enabled agent accepts the scan exclusion and write denial variables listed above.
 Values are JSON arrays of strings; unset, blank, or `[]` means no rules. Shell environment
 values take precedence over `.env`. Rules for one agent do not affect other agents or SSOT.
 

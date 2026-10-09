@@ -1,7 +1,68 @@
 import assert from 'node:assert/strict';
 import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { createFixture, run, writeDotenv, writeSkill } from './_helpers.mjs';
+
+test('registered agents use their own directory and rule variables', () => {
+	const fx = createFixture();
+	try {
+		const cursorDir = join(fx.root, 'cursor');
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+			CODEX_SKILLS_DIR: fx.codexDir,
+			CURSOR_SKILLS_DIR: cursorDir,
+			CLAUDE_SCAN_EXCLUDE_PATTERNS: '\'["hidden/"]\'',
+			CODEX_WRITE_DENY_PATTERNS: '\'["demo/"]\'',
+			CURSOR_SCAN_EXCLUDE_PATTERNS: '\'["hidden/"]\'',
+			CURSOR_WRITE_DENY_PATTERNS: '\'["demo/"]\'',
+		});
+		writeSkill(fx.sourceDir, 'demo', { 'SKILL.md': 'source\n' });
+		for (const root of [fx.claudeDir, fx.codexDir, cursorDir]) {
+			writeSkill(root, 'hidden', { 'SKILL.md': 'agent only\n' });
+		}
+		const claude = run(fx.root, ['apply', '--agent', 'claude']);
+		assert.equal(claude.status, 0, claude.stderr);
+		for (const agent of ['codex', 'cursor']) {
+			const result = run(fx.root, ['apply', '--agent', agent, '--force']);
+			assert.equal(result.status, 1, result.stderr);
+		}
+		const doctor = run(fx.root, ['doctor']);
+		assert.equal(doctor.status, 1, doctor.stderr);
+		assert.ok(doctor.stdout.includes(cursorDir));
+		assert.match(doctor.stdout, /codex: hidden/);
+		assert.doesNotMatch(doctor.stdout, /(?:claude|cursor): hidden/);
+	} finally {
+		fx.cleanup();
+	}
+});
+
+test('unknown directory variables and rules for disabled agents do not enable agents', () => {
+	const fx = createFixture();
+	try {
+		writeDotenv(fx.envFile, {
+			SKILLS_SOURCE_DIR: fx.sourceDir,
+			CLAUDE_SKILLS_DIR: fx.claudeDir,
+			CODEX_SKILLS_DIR: '"   "',
+			CURSOR_SKILLS_DIR: '""',
+			CUSTOM_SKILLS_DIR: join(fx.root, 'custom'),
+			CUSTOM_SCAN_EXCLUDE_PATTERNS: 'invalid-json',
+			CODEX_WRITE_DENY_PATTERNS: 'invalid-json',
+			CURSOR_SCAN_EXCLUDE_PATTERNS: 'invalid-json',
+		});
+		writeSkill(fx.sourceDir, 'demo', { 'SKILL.md': 'source\n' });
+		const doctor = run(fx.root, ['doctor']);
+		assert.equal(doctor.status, 1, doctor.stderr);
+		for (const agent of ['codex', 'cursor', 'custom']) {
+			const diff = run(fx.root, ['diff', '--agent', agent]);
+			assert.equal(diff.status, 2);
+			assert.match(diff.stderr, /not enabled.*Enabled agents: claude/);
+		}
+	} finally {
+		fx.cleanup();
+	}
+});
 
 test('.env paths are resolved relative to the .env file dir', () => {
 	const fx = createFixture();
