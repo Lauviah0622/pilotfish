@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +34,10 @@ export function writeSkill(root, name, files) {
 	for (const [rel, content] of Object.entries(files)) {
 		writeFile(join(root, name, rel), content);
 	}
+}
+
+export function copyRootFixture(destination, name) {
+	cpSync(join(here, 'fixtures', 'roots', name), join(destination, name), { recursive: true });
 }
 
 export function writeDotenv(path, map) {
