@@ -1,0 +1,3 @@
+- [x] use --verbose instread summary
+- [x] agent registry
+- [x] import integration test
