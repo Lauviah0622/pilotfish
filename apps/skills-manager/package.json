@@ -23,7 +23,7 @@
 		"test:only": "node --test tests/*.test.mjs"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": ">=20.12.0"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -38,6 +38,7 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
+		"@clack/prompts": "^1.8.1",
 		"diff": "^9.0.0",
 		"fdir": "^6.5.0",
 		"ignore": "^7.0.12",

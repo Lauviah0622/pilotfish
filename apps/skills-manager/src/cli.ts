@@ -2,7 +2,13 @@ import { runApply } from './commands/apply.js';
 import { runDiff } from './commands/diff.js';
 import { runDoctor } from './commands/doctor.js';
 import { runImport } from './commands/import.js';
-import { ConfigError, loadConfig, rejectOverlappingPaths } from './config.js';
+import { runInit } from './commands/init.js';
+import {
+	ConfigError,
+	GLOBAL_DOTENV_LOCATION,
+	loadConfig,
+	rejectOverlappingPaths,
+} from './config.js';
 
 const HELP = `skills — local-only global skills manager
 
@@ -10,6 +16,7 @@ USAGE
   skills <command> [options]
 
 COMMANDS
+  init                       Guide first-time setup of ${GLOBAL_DOTENV_LOCATION}
   doctor [options]           Show source, agents, deployment matrix, and summary
   diff   [options]           Compare source skill roots with targets (read-only)
   apply  [options]           Deploy source skill roots to targets
@@ -50,7 +57,7 @@ CONFIG (.env)
   CURSOR_SKILLS_DIR          Enable Cursor
 
 The CLI looks for \`.env\` in the current working directory, then
-\`~/.config/skills-manager/.env\`. If neither exists it uses process.env.
+\`${GLOBAL_DOTENV_LOCATION}\`. If neither exists it uses process.env.
 CLI paths resolve against the current working directory. --target replaces
 the agent list; use --source and --target together for repository-local deployment.
 `;
@@ -234,6 +241,25 @@ export async function main(argv: readonly string[]): Promise<number> {
 	const { command } = parsed;
 	try {
 		switch (command) {
+			case 'init': {
+				rejectExtraPositional(command, parsed.positional);
+				if (
+					parsed.root ||
+					parsed.agent ||
+					parsed.source ||
+					parsed.target ||
+					parsed.subdir ||
+					parsed.as ||
+					parsed.dryRun ||
+					parsed.force ||
+					parsed.summary ||
+					parsed.stat ||
+					parsed.verbose
+				) {
+					throw new UsageError('init does not accept options');
+				}
+				return await runInit();
+			}
 			case 'doctor': {
 				rejectExtraPositional(command, parsed.positional);
 				if (parsed.target) throw new UsageError('doctor does not accept --target');

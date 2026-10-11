@@ -11,6 +11,12 @@ export class ConfigError extends Error {
 	}
 }
 
+export const GLOBAL_DOTENV_LOCATION = '~/.config/skills-manager/.env';
+
+export function globalDotenvPath(): string {
+	return resolve(expandHome(GLOBAL_DOTENV_LOCATION));
+}
+
 export function expandHome(p: string): string {
 	if (p === '~') return homedir();
 	if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
@@ -29,11 +35,11 @@ export function resolvePath(value: string, baseDir: string): string {
 
 /**
  * Locate a .env file. Spec forbids --env-file; we look in CWD, then
- * ~/.config/skills-manager/.env. If neither exists, we return null and
+ * the global configuration location. If neither exists, we return null and
  * fall back to process.env with cwd as the base for relative paths.
  */
 export function findDotenv(cwd: string = process.cwd()): string | null {
-	const candidates = [resolve(cwd, '.env'), resolve(homedir(), '.config/skills-manager/.env')];
+	const candidates = [resolve(cwd, '.env'), globalDotenvPath()];
 	for (const c of candidates) {
 		if (existsSync(c) && statSync(c).isFile()) return c;
 	}

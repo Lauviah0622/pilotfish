@@ -45,6 +45,50 @@ If you want the `skills` command globally:
 pnpm link --global
 ```
 
+To share the CLI without publishing it to a registry, build it from this directory
+and send the resulting tarball to the other person:
+
+```sh
+pnpm run build
+npm pack                     # creates pilotfish-skills-manager-0.1.0.tgz
+```
+
+They can then install it with npm and run the setup guide:
+
+```sh
+npm install -g ./pilotfish-skills-manager-0.1.0.tgz
+skills init
+```
+
+The tarball can also be attached to a [GitHub release as an asset](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository); GitHub's
+automatically generated repository source archive is a different file. Recipients
+need Node.js 20.12+ and do not need this repository or pnpm to install it.
+
+### First-time setup
+
+After installing the CLI, run `skills init`. It asks for the SSOT directory and which
+agents to configure, then creates `~/.config/skills-manager/.env` and the SSOT directory.
+The suggested agent paths come from `src/agents.ts`. The guide checks each agent's
+configuration directories in order and lets you include an agent even when none are present;
+this check does not prove the agent is installed. It does not create agent directories or
+deploy any skills. An existing global `.env` is never overwritten. A `.env` in the current
+directory takes precedence over the global file when you later run `skills doctor`, `diff`,
+or `apply`.
+
+```sh
+skills init
+skills doctor
+```
+
+The default SSOT is `~/.skills/skills`. The suggested Codex target is
+`~/.agents/skills`, following [Codex's user skill location](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills).
+For the Codex prompt, `init` checks `~/.codex` first and then `~/.agents`; either
+directory counts as found, and you still choose the full skills path yourself.
+If your Codex installation uses `~/.codex/skills`, enter that path when prompted.
+The generated configuration includes scan exclusions and write denials for Codex's
+`.system/` and Claude's `.trash/` and `synced/` directories. Review the suggested paths
+before deploying skills. To change an existing setup, edit the global `.env` directly.
+
 ## Configure (.env)
 
 Create `.env` either in the current working directory or at `~/.config/skills-manager/.env`. Only agents whose variable is set are considered **enabled**.
@@ -52,7 +96,7 @@ Create `.env` either in the current working directory or at `~/.config/skills-ma
 ```dotenv
 SKILLS_SOURCE_DIR=~/.skills/skills
 CLAUDE_SKILLS_DIR=~/.claude/skills
-CODEX_SKILLS_DIR=~/.codex/skills
+CODEX_SKILLS_DIR=~/.agents/skills
 CURSOR_SKILLS_DIR=~/.cursor/skills
 
 CODEX_SCAN_EXCLUDE_PATTERNS='[".system/"]'
