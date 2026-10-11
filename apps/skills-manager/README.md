@@ -64,6 +64,25 @@ The tarball can also be attached to a [GitHub release as an asset](https://docs.
 automatically generated repository source archive is a different file. Recipients
 need Node.js 20.12+ and do not need this repository or pnpm to install it.
 
+### Publish a GitHub Release
+
+After committing the intended version in `package.json` and pushing `main`, run this
+from `apps/skills-manager` with GitHub CLI authenticated:
+
+```sh
+pnpm run publish
+```
+
+The command requires a clean repository and a local `main` that matches
+`origin/main`. It runs the test suite (which builds the CLI), packs the npm
+tarball, and creates a GitHub Release with the tarball attached. The tag is
+`<package-name>@<version>` and the title is `<package-name> <version>`.
+Release notes summarize commits and changed files in `apps/skills-manager`
+since the previous tag for this package. The first release gets an initial
+release note. An existing tag or a failed check stops the command before
+creating a release. The package remains private to the npm registry; this
+command only publishes a GitHub Release.
+
 ### First-time setup
 
 After installing the CLI, run `skills init`. It asks for the SSOT directory and which

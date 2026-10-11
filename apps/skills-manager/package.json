@@ -20,7 +20,8 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"test": "pnpm run build && node --test tests/*.test.mjs",
-		"test:only": "node --test tests/*.test.mjs"
+		"test:only": "node --test tests/*.test.mjs",
+		"publish": "node scripts/publish.mjs"
 	},
 	"engines": {
 		"node": ">=20.12.0"
