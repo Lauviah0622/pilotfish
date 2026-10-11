@@ -1,12 +1,12 @@
 # @pilotfish/skills-manager
 
-`skills` — a local-only CLI that treats one directory as the single source of truth (SSOT) for your global agent skill roots and deploys each root into an agent's global skills folder.
+`skills` — a local-only CLI that uses a configured source directory (SSOT) for your global agent skill roots by default and deploys each root into an agent's skills folder. One-command path overrides can use repository-local directories.
 
 The mental model, in three lines:
 
-1. The SSOT is the only place you edit skills.
+1. The selected source is the place you edit skills.
 2. Agent directories are deployment output, never input.
-3. `doctor` and `diff` observe the actual filesystem state; `apply` makes it match the SSOT.
+3. `doctor` and `diff` observe the actual filesystem state; `apply` makes targets match the selected source.
 
 Each direct child of the SSOT is a **skill root**. A root can contain one skill at its top level or several skills deeper in its tree. A directory containing `SKILL.md` is a skill; the complete root is the unit that `diff` compares and `apply` copies.
 
@@ -61,7 +61,7 @@ CLAUDE_SCAN_EXCLUDE_PATTERNS='[".trash/", "synced/"]'
 CLAUDE_WRITE_DENY_PATTERNS='[".trash/", "synced/"]'
 ```
 
-- `SKILLS_SOURCE_DIR` is required.
+- `SKILLS_SOURCE_DIR` is required unless that invocation supplies `--source`.
 - Supported agents and their environment keys are defined in `src/agents.ts`:
 
 | Agent | Skills directory | Scan exclusions | Write denials |
@@ -75,6 +75,26 @@ CLAUDE_WRITE_DENY_PATTERNS='[".trash/", "synced/"]'
 - To add an agent, add an `AgentDefinition` entry in `src/agents.ts` with a unique ID and
   explicit environment keys, then rebuild. Commands share the resulting configuration.
 - `~` is expanded. Relative paths resolve against the `.env` file's directory.
+
+### One-command path overrides
+
+`--source <dir>` selects a different directory of skill roots for this invocation. `--target <dir>` selects one destination skills directory instead of all enabled agents. Both paths may be absolute or relative to the current working directory; they do not change `.env`. A source or target is the **parent directory of skill roots**, not an individual skill root.
+
+| Command | `--source` | `--target` |
+| --- | --- | --- |
+| `doctor` | Show the selected source as `Source`; keep the enabled-agent overview | Not accepted |
+| `diff`, `apply` | Compare/deploy from the selected source to enabled agents | Compare/deploy to this directory only; source defaults to SSOT |
+| `import` | Import into the selected source | Not accepted |
+
+With both flags, `diff` and `apply` use the specified source and target without requiring any configured agent. For example, from a repository root:
+
+```sh
+skills diff --source ./repo-skills --target ./.agents/skills
+skills apply --source ./repo-skills --target ./.agents/skills --dry-run
+skills apply --source ./repo-skills --target ./.agents/skills
+```
+
+`apply --source ./repo-skills` alone still deploys to every enabled agent, including global directories. A direct `--target` cannot be combined with `--agent`; its output shows the resolved target path. If the target matches a configured agent directory, that agent's scan exclusions and write denials still apply. `diff` and `apply` reject source and target directories that are equal or nested within one another, including paths through existing symlinks. Existing `--force` conflict handling still applies. Relative `.env` paths continue to resolve against the `.env` file's directory.
 
 The CLI never writes to `.env`, never spawns a daemon, and never watches files.
 
@@ -111,7 +131,7 @@ skills. `.env.example` provides a versioned template; the local `.env` is ignore
 
 ### `skills doctor`
 
-Read-only overview. Shows SSOT and agent paths, a deployment matrix, unmanaged (agent-only) skills, effective path rules, diagnostics, and a summary count.
+Read-only overview. Shows the source and agent paths, a deployment matrix, unmanaged (agent-only) skills, effective path rules, diagnostics, and a summary count. `--source` labels the selected source `Source` in output.
 
 ### `skills diff [--root R] [--agent A] [--summary|--stat|--verbose]`
 
@@ -119,7 +139,7 @@ Per-target comparison. Default output shows each root, its status, and file chan
 
 ### `skills apply [--root R] [--agent A] [--dry-run] [--force]`
 
-Deploys selected SSOT skill roots to agents, preserving all paths below each root.
+Deploys selected source skill roots to agents or the specified `--target`, preserving all paths below each root.
 
 - `missing` targets are created.
 - `synced` targets are skipped.
@@ -132,7 +152,7 @@ Deploys selected SSOT skill roots to agents, preserving all paths below each roo
 
 ### `skills import <archive-url> [--subdir P] [--as R] [--force]`
 
-Imports a zip or tar.gz archive into one SSOT skill root. The chosen archive directory must contain at least one `SKILL.md` anywhere in its tree. `--subdir` selects a smaller root within the archive; `--as` names the SSOT root. Import does not deploy it to agents until `skills apply` runs.
+Imports a zip or tar.gz archive into one source skill root. The chosen archive directory must contain at least one `SKILL.md` anywhere in its tree. `--subdir` selects a smaller root within the archive; `--as` names the source root. Import does not deploy it until `skills apply` runs.
 
 ## Selectors
 

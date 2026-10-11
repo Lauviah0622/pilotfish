@@ -10,13 +10,14 @@ export interface DoctorResult {
 export function runDoctor(config: AppConfig): DoctorResult {
 	const snapshot = takeSnapshot(config);
 	const targets = selectTargets(config, snapshot, {});
+	const sourceLabel = config.sourceOverridden ? 'Source' : 'SSOT';
 
 	const sections: string[] = [];
 
 	// Paths.
 	sections.push(bold('Paths'));
 	const pathRows: string[][] = [
-		['  SSOT', config.sourceDir + sourceAnnotation(snapshot.source.rootExists)],
+		[`  ${sourceLabel}`, config.sourceDir + sourceAnnotation(snapshot.source.rootExists)],
 	];
 	for (const agent of config.agents) {
 		const inv = snapshot.agents.get(agent.name);
@@ -39,7 +40,7 @@ export function runDoctor(config: AppConfig): DoctorResult {
 
 	// Source inventory.
 	sections.push('');
-	sections.push(bold('SSOT skill roots'));
+	sections.push(bold(`${sourceLabel} skill roots`));
 	if (snapshot.source.skills.length === 0) {
 		sections.push('  (no skill roots found)');
 	} else {
@@ -89,7 +90,7 @@ export function runDoctor(config: AppConfig): DoctorResult {
 
 	// Diagnostics.
 	const diagnostics: string[] = [];
-	for (const d of snapshot.source.diagnostics) diagnostics.push(`[SSOT] ${d}`);
+	for (const d of snapshot.source.diagnostics) diagnostics.push(`[${sourceLabel}] ${d}`);
 	for (const agent of config.agents) {
 		const inv = snapshot.agents.get(agent.name);
 		if (!inv) continue;
@@ -99,7 +100,7 @@ export function runDoctor(config: AppConfig): DoctorResult {
 		}
 	}
 	for (const s of snapshot.source.skills) {
-		for (const d of s.diagnostics) diagnostics.push(`[SSOT:${s.name}] ${d}`);
+		for (const d of s.diagnostics) diagnostics.push(`[${sourceLabel}:${s.name}] ${d}`);
 	}
 	if (diagnostics.length > 0) {
 		sections.push('');

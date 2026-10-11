@@ -2,7 +2,7 @@ import { runApply } from './commands/apply.js';
 import { runDiff } from './commands/diff.js';
 import { runDoctor } from './commands/doctor.js';
 import { runImport } from './commands/import.js';
-import { ConfigError, loadConfig } from './config.js';
+import { ConfigError, loadConfig, rejectOverlappingPaths } from './config.js';
 
 const HELP = `skills — local-only global skills manager
 
@@ -10,30 +10,33 @@ USAGE
   skills <command> [options]
 
 COMMANDS
-  doctor                     Show SSOT, agents, deployment matrix, and summary
-  diff   [options]           Compare SSOT skill roots with agent inventories (read-only)
-  apply  [options]           Deploy SSOT skill roots to agents
-  import <url> [options]     Download a skill root archive (zip / tar.gz) into the SSOT
+  doctor [options]           Show source, agents, deployment matrix, and summary
+  diff   [options]           Compare source skill roots with targets (read-only)
+  apply  [options]           Deploy source skill roots to targets
+  import <url> [options]     Download a skill root archive (zip / tar.gz) into the source
 
 COMMON OPTIONS
+  --source <dir>             Override SKILLS_SOURCE_DIR for this command
   --root <name>              Limit to one skill root  (diff / apply)
   --skill <name>             Alias for --root
   --agent <name>             Limit to one agent  (diff / apply)
 
 DIFF OPTIONS
+  --target <dir>             Compare only this skills directory (instead of agents)
   (default)                  One line per root with status and file change counts
   --summary                  Same as the default output
   --stat                     Per-file add/remove/modify list (no textual diff)
   --verbose                  Show the full textual diff
 
 APPLY OPTIONS
+  --target <dir>             Deploy only to this skills directory (instead of agents)
   --dry-run                  Show plan without touching the filesystem
-  --force                    Overwrite \`different\` targets with SSOT content
+  --force                    Overwrite \`different\` targets with source content
 
 IMPORT OPTIONS
   --subdir <path>            Treat this subpath of the archive as the skill root
   --as <name>                Override the inferred skill root name
-  --force                    Replace an existing SSOT skill root with the same name
+  --force                    Replace an existing source skill root with the same name
 
 EXIT CODES
   0  success, no drift
@@ -41,13 +44,15 @@ EXIT CODES
   2  configuration, argument, or I/O error
 
 CONFIG (.env)
-  SKILLS_SOURCE_DIR          Canonical SSOT directory (required)
+  SKILLS_SOURCE_DIR          Canonical SSOT directory (unless --source is given)
   CLAUDE_SKILLS_DIR          Enable Claude Code
   CODEX_SKILLS_DIR           Enable Codex
   CURSOR_SKILLS_DIR          Enable Cursor
 
 The CLI looks for \`.env\` in the current working directory, then
 \`~/.config/skills-manager/.env\`. If neither exists it uses process.env.
+CLI paths resolve against the current working directory. --target replaces
+the agent list; use --source and --target together for repository-local deployment.
 `;
 
 interface ParsedArgs {
@@ -55,6 +60,8 @@ interface ParsedArgs {
 	readonly positional: readonly string[];
 	readonly root?: string;
 	readonly agent?: string;
+	readonly source?: string;
+	readonly target?: string;
 	readonly subdir?: string;
 	readonly as?: string;
 	readonly dryRun: boolean;
@@ -68,6 +75,8 @@ interface ParsedArgs {
 function parseArgs(argv: readonly string[]): ParsedArgs {
 	let root: string | undefined;
 	let agent: string | undefined;
+	let source: string | undefined;
+	let target: string | undefined;
 	let subdir: string | undefined;
 	let as: string | undefined;
 	let dryRun = false;
@@ -119,6 +128,20 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 			if (v.consumed) i++;
 			continue;
 		}
+		if (a === '--source' || a.startsWith('--source=')) {
+			const v = readValue('--source', a, argv, i);
+			if (source !== undefined) throw new UsageError('--source may only be given once');
+			source = v.value;
+			if (v.consumed) i++;
+			continue;
+		}
+		if (a === '--target' || a.startsWith('--target=')) {
+			const v = readValue('--target', a, argv, i);
+			if (target !== undefined) throw new UsageError('--target may only be given once');
+			target = v.value;
+			if (v.consumed) i++;
+			continue;
+		}
 		if (a === '--subdir' || a.startsWith('--subdir=')) {
 			const v = readValue('--subdir', a, argv, i);
 			if (subdir !== undefined) throw new UsageError('--subdir may only be given once');
@@ -153,6 +176,8 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 		positional: positional.slice(1),
 		root,
 		agent,
+		source,
+		target,
 		subdir,
 		as,
 		dryRun,
@@ -208,10 +233,10 @@ export async function main(argv: readonly string[]): Promise<number> {
 
 	const { command } = parsed;
 	try {
-		const config = loadConfig();
 		switch (command) {
 			case 'doctor': {
 				rejectExtraPositional(command, parsed.positional);
+				if (parsed.target) throw new UsageError('doctor does not accept --target');
 				if (parsed.root || parsed.agent) {
 					throw new UsageError('doctor does not accept --root or --agent');
 				}
@@ -219,17 +244,22 @@ export async function main(argv: readonly string[]): Promise<number> {
 				if (parsed.dryRun || parsed.force || parsed.summary || parsed.stat || parsed.verbose) {
 					throw new UsageError('doctor does not accept apply/diff flags');
 				}
-				const result = runDoctor(config);
+				const result = runDoctor(loadConfig(process.cwd(), { source: parsed.source }));
 				process.stdout.write(`${result.output}\n`);
 				return result.exitCode;
 			}
 			case 'diff': {
 				rejectExtraPositional(command, parsed.positional);
 				rejectImportFlags(command, parsed);
+				if (parsed.target && parsed.agent) {
+					throw new UsageError('--target and --agent cannot be combined');
+				}
 				if (parsed.dryRun || parsed.force) {
 					throw new UsageError('diff does not accept --dry-run or --force');
 				}
 				const mode = parsed.verbose ? 'full' : parsed.stat ? 'stat' : 'summary';
+				const config = loadConfig(process.cwd(), { source: parsed.source, target: parsed.target });
+				rejectOverlappingPaths(config);
 				const result = runDiff(config, {
 					selector: { root: parsed.root, agent: parsed.agent },
 					mode,
@@ -240,9 +270,14 @@ export async function main(argv: readonly string[]): Promise<number> {
 			case 'apply': {
 				rejectExtraPositional(command, parsed.positional);
 				rejectImportFlags(command, parsed);
+				if (parsed.target && parsed.agent) {
+					throw new UsageError('--target and --agent cannot be combined');
+				}
 				if (parsed.summary || parsed.stat || parsed.verbose) {
 					throw new UsageError('apply does not accept --summary, --stat, or --verbose');
 				}
+				const config = loadConfig(process.cwd(), { source: parsed.source, target: parsed.target });
+				rejectOverlappingPaths(config);
 				const result = runApply(config, {
 					selector: { root: parsed.root, agent: parsed.agent },
 					dryRun: parsed.dryRun,
@@ -252,6 +287,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 				return result.exitCode;
 			}
 			case 'import': {
+				if (parsed.target) throw new UsageError('import does not accept --target');
 				if (parsed.positional.length === 0) {
 					throw new UsageError('import requires a URL — e.g. skills import <url>');
 				}
@@ -266,6 +302,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 				if (parsed.dryRun || parsed.summary || parsed.stat || parsed.verbose) {
 					throw new UsageError('import does not accept --dry-run / --summary / --stat / --verbose');
 				}
+				const config = loadConfig(process.cwd(), { source: parsed.source });
 				const result = await runImport(config, {
 					url: parsed.positional[0]!,
 					subdir: parsed.subdir,

@@ -90,6 +90,27 @@ test('import zip with single top-level dir (GitHub-style) auto-strips', async ()
 	}
 });
 
+test('import --source writes to the selected directory without SKILLS_SOURCE_DIR', async () => {
+	const fx = createFixture();
+	const srv = await serveFixtures({
+		'/review.zip': makeZip({ 'repo-main/SKILL.md': '# local review\n' }),
+	});
+	try {
+		const localSource = join(fx.root, 'local-source');
+		const result = await runAsync(
+			fx.root,
+			['import', srv.url('/review.zip'), '--source', './local-source'],
+			{ SKILLS_SOURCE_DIR: '' },
+		);
+		assert.equal(result.status, 0, result.stderr || result.stdout);
+		assert.equal(readFileSync(join(localSource, 'review/SKILL.md'), 'utf8'), '# local review\n');
+		assert.equal(existsSync(join(fx.sourceDir, 'review')), false);
+	} finally {
+		await srv.close();
+		fx.cleanup();
+	}
+});
+
 test('import tar.gz (npm-style with package/ root) auto-strips', async () => {
 	const fx = createFixture();
 	const srv = await serveFixtures({

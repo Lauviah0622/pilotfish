@@ -11,6 +11,7 @@ export interface AgentConfig {
 export interface AppConfig {
 	readonly envFile: string | null;
 	readonly sourceDir: string;
+	readonly sourceOverridden: boolean;
 	readonly agents: readonly AgentConfig[];
 }
 

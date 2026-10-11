@@ -132,7 +132,7 @@ function validateSelector(config: AppConfig, snapshot: Snapshot, selector: Selec
 		const found = snapshot.source.skills.some((s) => s.name === selector.root);
 		if (!found) {
 			throw new ConfigError(
-				`Skill root "${selector.root}" not found in SSOT (${config.sourceDir}).`,
+				`Skill root "${selector.root}" not found in ${config.sourceOverridden ? 'source' : 'SSOT'} (${config.sourceDir}).`,
 			);
 		}
 	}

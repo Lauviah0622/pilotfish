@@ -24,6 +24,8 @@ export interface ApplyResult {
 
 export function runApply(config: AppConfig, options: ApplyOptions): ApplyResult {
 	const snapshot = takeSnapshot(config);
+	if (!snapshot.source.rootExists)
+		throw new Error(`Source directory not found: ${config.sourceDir}`);
 	const targets = selectTargets(config, snapshot, options.selector).map((t) => {
 		if (t.blockedReason) return t;
 		// Scan exclusions do not authorize overwriting an existing directory.
@@ -40,7 +42,9 @@ export function runApply(config: AppConfig, options: ApplyOptions): ApplyResult 
 		.filter((s) => !s.valid);
 	if (invalid.length > 0) {
 		const details = invalid.map((s) => `  ${s.name}: ${s.diagnostics.join('; ')}`).join('\n');
-		throw new Error(`Invalid skill root(s) in SSOT:\n${details}`);
+		throw new Error(
+			`Invalid skill root(s) in ${config.sourceOverridden ? 'source' : 'SSOT'}:\n${details}`,
+		);
 	}
 
 	const sections: string[] = [];
@@ -167,7 +171,7 @@ function applyTarget(config: AppConfig, t: DeploymentTarget, force: boolean): Ap
 			skill: t.skill,
 			agent: t.agent,
 			action: 'skipped-conflict',
-			reason: 'target differs from SSOT — rerun with --force to overwrite',
+			reason: 'target differs from source — rerun with --force to overwrite',
 		};
 	}
 	const agent = config.agents.find((a) => a.name === t.agent)!;

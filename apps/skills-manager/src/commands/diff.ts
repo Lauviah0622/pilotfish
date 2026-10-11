@@ -16,6 +16,8 @@ export interface DiffResult {
 
 export function runDiff(config: AppConfig, options: DiffOptions): DiffResult {
 	const snapshot = takeSnapshot(config);
+	if (!snapshot.source.rootExists)
+		throw new Error(`Source directory not found: ${config.sourceDir}`);
 	const targets = selectTargets(config, snapshot, options.selector);
 
 	// Verify all selected source skill roots are valid; otherwise fail.
@@ -24,7 +26,9 @@ export function runDiff(config: AppConfig, options: DiffOptions): DiffResult {
 		.filter((s) => !s.valid);
 	if (invalid.length > 0) {
 		const details = invalid.map((s) => `  ${s.name}: ${s.diagnostics.join('; ')}`).join('\n');
-		throw new Error(`Invalid skill root(s) in SSOT:\n${details}`);
+		throw new Error(
+			`Invalid skill root(s) in ${config.sourceOverridden ? 'source' : 'SSOT'}:\n${details}`,
+		);
 	}
 
 	const lines: string[] = [];

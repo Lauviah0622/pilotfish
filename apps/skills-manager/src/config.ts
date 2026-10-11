@@ -1,6 +1,6 @@
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, resolve, win32 } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, win32 } from 'node:path';
 import { AGENT_DEFINITIONS } from './agents.js';
 import type { AgentConfig, AppConfig } from './types.js';
 
@@ -71,7 +71,12 @@ function readPatterns(key: string): string[] {
 	return value;
 }
 
-export function loadConfig(cwd: string = process.cwd()): AppConfig {
+export interface PathOverrides {
+	readonly source?: string;
+	readonly target?: string;
+}
+
+export function loadConfig(cwd: string = process.cwd(), overrides: PathOverrides = {}): AppConfig {
 	const envFile = findDotenv(cwd);
 	if (envFile) {
 		try {
@@ -84,14 +89,17 @@ export function loadConfig(cwd: string = process.cwd()): AppConfig {
 	}
 	const baseDir = envFile ? dirname(envFile) : cwd;
 
-	const sourceRaw = process.env.SKILLS_SOURCE_DIR;
+	const sourceRaw = overrides.source ?? process.env.SKILLS_SOURCE_DIR;
 	if (!sourceRaw || sourceRaw.trim() === '') {
 		throw new ConfigError(
-			'SKILLS_SOURCE_DIR is required. Set it in your .env file or environment.',
+			'SKILLS_SOURCE_DIR is required. Set it in your .env file or environment, or pass --source.',
 		);
 	}
 
-	const sourceDir = resolvePath(sourceRaw.trim(), baseDir);
+	const sourceDir = overrides.source
+		? resolve(cwd, expandHome(overrides.source))
+		: resolvePath(sourceRaw.trim(), baseDir);
+	const targetDir = overrides.target ? resolve(cwd, expandHome(overrides.target)) : undefined;
 
 	const agents: AgentConfig[] = [];
 	for (const definition of [...AGENT_DEFINITIONS].sort((a, b) =>
@@ -100,20 +108,58 @@ export function loadConfig(cwd: string = process.cwd()): AppConfig {
 		const { id, env } = definition;
 		const raw = (process.env[env.skillsDir] ?? '').trim();
 		if (raw === '') continue;
+		const dir = resolvePath(raw, baseDir);
+		if (targetDir && canonicalPath(dir) !== canonicalPath(targetDir)) {
+			continue;
+		}
 		agents.push({
 			name: id,
 			envVar: env.skillsDir,
-			dir: resolvePath(raw, baseDir),
+			dir,
 			scanExcludePatterns: readPatterns(env.scanExcludePatterns),
 			writeDenyPatterns: readPatterns(env.writeDenyPatterns),
+		});
+	}
+	if (targetDir) {
+		const matchingAgent = agents[0];
+		agents.splice(0, agents.length, {
+			name: targetDir,
+			envVar: '--target',
+			dir: targetDir,
+			scanExcludePatterns: matchingAgent?.scanExcludePatterns ?? [],
+			writeDenyPatterns: matchingAgent?.writeDenyPatterns ?? [],
 		});
 	}
 
 	return {
 		envFile,
 		sourceDir,
+		sourceOverridden: overrides.source !== undefined,
 		agents,
 	};
+}
+
+function canonicalPath(path: string): string {
+	let existing = resolve(path);
+	while (!existsSync(existing)) existing = dirname(existing);
+	return resolve(realpathSync(existing), relative(existing, path));
+}
+
+function containsPath(parent: string, child: string): boolean {
+	const rel = relative(parent, child);
+	return rel === '' || (rel.split(/[\\/]/)[0] !== '..' && !isAbsolute(rel));
+}
+
+export function rejectOverlappingPaths(config: AppConfig): void {
+	const source = canonicalPath(config.sourceDir);
+	for (const agent of config.agents) {
+		const target = canonicalPath(agent.dir);
+		if (containsPath(source, target) || containsPath(target, source)) {
+			throw new ConfigError(
+				`Source and target directories must not overlap: ${config.sourceDir}, ${agent.dir}.`,
+			);
+		}
+	}
 }
 
 export function requireAgent(config: AppConfig, name: string): AgentConfig {

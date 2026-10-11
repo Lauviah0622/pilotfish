@@ -89,7 +89,7 @@ export async function runImport(config: AppConfig, options: ImportOptions): Prom
 		if (targetExists && !options.force) {
 			return fail(
 				sections,
-				`SSOT already contains "${inferred}" at ${target} — rerun with --force to replace or use --as`,
+				`${config.sourceOverridden ? 'Source' : 'SSOT'} already contains "${inferred}" at ${target} — rerun with --force to replace or use --as`,
 			);
 		}
 
